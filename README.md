@@ -45,6 +45,56 @@ uvicorn app.main:app --reload
 - `GET /api/health` : 헬스체크
 - `GET /docs` : Swagger UI
 
+## 팀 표준(venv)
+
+### 1) 최초 1회 설정
+
+```bash
+python -m venv .venv
+```
+
+PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Git Bash:
+
+```bash
+source .venv/Scripts/activate
+```
+
+의존성 설치:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2) VS Code 인터프리터 고정
+
+- `Python: Select Interpreter`에서 `.venv/Scripts/python.exe` 선택
+- 확인 명령:
+
+```bash
+python -c "import sys; print(sys.executable)"
+```
+
+### 3) 의존성 관리 원칙
+
+- `.venv/`는 Git에 커밋하지 않음
+- 새 패키지 설치 후 `requirements.txt`를 반드시 함께 업데이트
+- 팀/CI는 `pip install -r requirements.txt`로 동일 환경 구성
+
+### 4) 매일 개발 시작 루틴
+
+```bash
+# (프로젝트 루트)
+source .venv/Scripts/activate   # PowerShell은 Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
 
 ## 프로젝트 구조
 ### api
