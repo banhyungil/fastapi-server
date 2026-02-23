@@ -38,6 +38,10 @@ copy .env.example .env
 ```bash
 uvicorn app.main:app --reload
 ```
+- uvicorn: ASGI 서버 실행 명령
+- app.main: 파이썬 모듈 경로 (main.py)
+- :app: 그 모듈 안 변수 이름 app = FastAPI(...)
+- --reload: hmr
 
 ## 엔드포인트
 
