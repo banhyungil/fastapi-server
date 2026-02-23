@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     env: str = "local"
     debug: bool = True
     api_prefix: str = "/api"
+    database_url: str = "localhost:5434"
 
     model_config = SettingsConfigDict(
         env_file=".env",

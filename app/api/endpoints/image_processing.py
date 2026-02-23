@@ -2,18 +2,43 @@
 from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
+from uuid import UUID
 from datetime import datetime
-from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 # 절대 import
+from app.schemas.file import FileListItem, FileListResponse, FileSaveResponse
+from app.services.file_service import insert_file, list_files
 from app.services.image_processing_service import process_image
 
 router = APIRouter()
 
+# 처리 이미지 조회
+@router.get("/image-processing", tags=["img-processing"], response_model=FileListResponse)
+async def get_saved_images(
+    limit: int = Query(20, ge=1, le=100),
+    cursor_uploaded_at: datetime | None = Query(None, alias="cursorUploadedAt"),
+    cursor_id: UUID | None = Query(None, alias="cursorId"),
+) -> FileListResponse:
+    if (cursor_uploaded_at is None) != (cursor_id is None):
+        raise HTTPException(status_code=400, detail="cursorUploadedAt and cursorId must be provided together")
 
+    page = list_files(
+        limit=limit,
+        cursor_uploaded_at=cursor_uploaded_at,
+        cursor_id=cursor_id,
+    )
+
+    return FileListResponse(
+        items=[FileListItem(**item) for item in page["items"]],
+        has_more=page["has_more"],
+        next_cursor_uploaded_at=page["next_cursor_uploaded_at"],
+        next_cursor_id=page["next_cursor_id"],
+    )
+
+# 이미지 처리
 @router.post("/image-processing", tags=["img-processing"])
 async def img_processing(
     file: UploadFile = File(...),
@@ -31,8 +56,9 @@ async def img_processing(
     return StreamingResponse(BytesIO(processed_image_bytes), media_type="image/png")
 
 
-@router.post("/image-processing/save", tags=["img-processing"])
-async def img_processing_save(file: UploadFile = File(...)) -> dict[str, Any]:
+# 처리 이미지 저장
+@router.post("/image-processing/save", tags=["img-processing"], response_model=FileSaveResponse)
+async def img_processing_save(file: UploadFile = File(...)) -> FileSaveResponse:
     # Python: 연산자 오버로딩
     # Path / "문자열"이면 Path.__truediv__()가 호출되어 경로 결합 연산자로 작동
     base = Path("uploads") / datetime.now().strftime("%Y-%m-%d")
@@ -42,7 +68,39 @@ async def img_processing_save(file: UploadFile = File(...)) -> dict[str, Any]:
     if file.content_type not in ("image/png", "image/jpeg"):
         raise HTTPException(400, "unsupported content type")
     
+    #### 파일쓰기 ####
     ext = ".png" if file.content_type == "image/png" else ".jpg"
     name = f"{uuid4().hex}{ext}"
     saved = base / name
     saved.write_bytes(data)
+
+    origin_nm = file.filename or name
+    saved_path = str(saved).replace("\\", "/")
+
+    #### DB 저장 ####
+    try:
+        inserted = insert_file(
+            origin_nm=origin_nm,
+            nm=name,
+            path=saved_path,
+            mime_type=file.content_type,
+            size_bytes=len(data),
+        )
+    except Exception as exc:
+        if saved.exists():
+            saved.unlink()
+        raise HTTPException(status_code=500, detail="failed to persist file metadata") from exc
+
+    #### 응답 ####
+    return FileSaveResponse(
+        id=inserted["id"],
+        origin_nm=origin_nm,
+        nm=name,
+        path=saved_path,
+        mime_type=file.content_type,
+        size_bytes=len(data),
+        uploaded_at=inserted["uploaded_at"],
+    )
+
+
+
