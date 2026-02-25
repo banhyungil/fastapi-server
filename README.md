@@ -43,6 +43,12 @@ uvicorn app.main:app --reload
 - :app: 그 모듈 안 변수 이름 app = FastAPI(...)
 - --reload: hmr
 
+
+```bash
+# fastapi 전용
+fastapi dev
+```
+
 ## 엔드포인트
 
 - `GET /` : 루트 확인
