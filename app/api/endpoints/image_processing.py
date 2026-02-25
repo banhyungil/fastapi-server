@@ -1,5 +1,6 @@
 # 외부 패키지는 패키지명으로 import
 from io import BytesIO
+import logging
 from pathlib import Path
 from uuid import uuid4
 from uuid import UUID
@@ -14,6 +15,7 @@ from app.services.file_service import insert_file, list_files
 from app.services.image_processing_service import process_image
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # 처리 이미지 조회
 @router.get("/image-processing", tags=["img-processing"], response_model=FileListResponse)
@@ -23,6 +25,7 @@ async def get_saved_images(
     cursor_id: UUID | None = Query(None, alias="cursorId"),
 ) -> FileListResponse:
     if (cursor_uploaded_at is None) != (cursor_id is None):
+        logger.exception("failed to persist file metadata")
         raise HTTPException(status_code=400, detail="cursorUploadedAt and cursorId must be provided together")
 
     page = list_files(
@@ -58,32 +61,32 @@ async def img_processing(
 
 # 처리 이미지 저장
 @router.post("/image-processing/save", tags=["img-processing"], response_model=FileSaveResponse)
-async def img_processing_save(file: UploadFile = File(...)) -> FileSaveResponse:
+async def img_processing_save(blob: UploadFile = File(...), prc_type: str = Form(..., alias="prcType")) -> FileSaveResponse:
     # Python: 연산자 오버로딩
     # Path / "문자열"이면 Path.__truediv__()가 호출되어 경로 결합 연산자로 작동
     base = Path("uploads") / datetime.now().strftime("%Y-%m-%d")
     base.mkdir(parents=True, exist_ok=True)
 
-    data = await file.read()
-    if file.content_type not in ("image/png", "image/jpeg"):
+    data = await blob.read()
+    if blob.content_type not in ("image/png", "image/jpeg"):
         raise HTTPException(400, "unsupported content type")
     
     #### 파일쓰기 ####
-    ext = ".png" if file.content_type == "image/png" else ".jpg"
-    name = f"{uuid4().hex}{ext}"
-    saved = base / name
+    ext = ".png" if blob.content_type == "image/png" else ".jpg"
+    saved_name = f"{uuid4().hex}{ext}"
+    saved = base / saved_name
     saved.write_bytes(data)
 
-    origin_nm = file.filename or name
+    origin_nm = blob.filename or saved_name
     saved_path = str(saved).replace("\\", "/")
 
     #### DB 저장 ####
     try:
         inserted = insert_file(
             origin_nm=origin_nm,
-            nm=name,
+            nm=saved_name,
             path=saved_path,
-            mime_type=file.content_type,
+            mime_type=blob.content_type,
             size_bytes=len(data),
         )
     except Exception as exc:
@@ -95,9 +98,9 @@ async def img_processing_save(file: UploadFile = File(...)) -> FileSaveResponse:
     return FileSaveResponse(
         id=inserted["id"],
         origin_nm=origin_nm,
-        nm=name,
+        nm=saved_name,
         path=saved_path,
-        mime_type=file.content_type,
+        mime_type=blob.content_type,
         size_bytes=len(data),
         uploaded_at=inserted["uploaded_at"],
     )

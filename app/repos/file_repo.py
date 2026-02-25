@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TypedDict
+from typing import TypedDict, Any
 from uuid import UUID
 
 import psycopg
@@ -37,6 +37,7 @@ def insert_file_row(
     mime_type: str,
     size_bytes: int,
     uploader_id: UUID | None = None,
+    options: dict[str, Any]
 ) -> InsertedFileMeta:
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
@@ -50,11 +51,11 @@ def insert_file_row(
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id)
+                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id, uploaded_at
                 """,
-                (origin_nm, nm, path, mime_type, size_bytes, uploader_id),
+                (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options),
             )
             row = cursor.fetchone()
 

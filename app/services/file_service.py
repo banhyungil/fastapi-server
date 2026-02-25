@@ -1,7 +1,8 @@
 from datetime import datetime
 from uuid import UUID
+from typing import Any
 
-from app.repositories.file_repo import FileRowPage, InsertedFileMeta, insert_file_row, list_file_rows
+from app.repos.file_repo import FileRowPage, InsertedFileMeta, insert_file_row, list_file_rows
 
 
 def insert_file(
@@ -12,6 +13,7 @@ def insert_file(
     mime_type: str,
     size_bytes: int,
     uploader_id: UUID | None = None,
+    options: dict[str, Any]
 ) -> InsertedFileMeta:
     return insert_file_row(
         origin_nm=origin_nm,
@@ -20,6 +22,7 @@ def insert_file(
         mime_type=mime_type,
         size_bytes=size_bytes,
         uploader_id=uploader_id,
+        options=options
     )
 
 
