@@ -3,6 +3,7 @@ from typing import TypedDict, Any
 from uuid import UUID
 
 import psycopg
+from psycopg.types.json import Jsonb
 
 from app.core.config import settings
 
@@ -20,6 +21,7 @@ class FileRow(TypedDict):
     mime_type: str
     size_bytes: int
     uploaded_at: datetime
+    options: dict[str, Any]
 
 
 class FileRowPage(TypedDict):
@@ -52,10 +54,10 @@ def insert_file_row(
             cursor.execute(
                 """
                 INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, uploaded_at
                 """,
-                (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options),
+                (origin_nm, nm, path, mime_type, size_bytes, uploader_id, Jsonb(options)),
             )
             row = cursor.fetchone()
 
@@ -80,7 +82,7 @@ def list_file_rows(
         raise RuntimeError("database_url is not configured")
 
     query = """
-        SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at
+        SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
         FROM t_file
     """
     params: list[object] = []
@@ -114,6 +116,7 @@ def list_file_rows(
             "mime_type": row[4],
             "size_bytes": row[5],
             "uploaded_at": row[6],
+            "options": row[7],
         }
         for row in visible_rows
     ]

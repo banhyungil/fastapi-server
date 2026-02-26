@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     env: str = "local"
     debug: bool = True
     api_prefix: str = "/api"
-    database_url: str = "localhost:5434"
+    database_url: str = "postgresql://postgres:test1!@localhost:5434/postgres"
 
     model_config = SettingsConfigDict(
         env_file=".env",

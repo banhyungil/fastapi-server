@@ -1,11 +1,12 @@
 from collections.abc import Callable
+import inspect
 
 import cv2
 import numpy as np
+from typing import Literal
 
 
-# 타입은 PascalCase로 작성
-ImageOperation = Callable[[np.ndarray], np.ndarray]
+ImageOperation = Callable[..., np.ndarray]
 
 
 THRESHOLD_TYPE_MAP: dict[str, int] = {
@@ -15,19 +16,78 @@ THRESHOLD_TYPE_MAP: dict[str, int] = {
     "tozeroInverse": cv2.THRESH_TOZERO_INV,
 }
 
+PrcType = Literal[
+    "sobel", "prewitt", "laplacian",
+    "gaussian", "blur", "gaussianBlur", "medianBlur", "bilateralFilter",
+    "findContour",
+    "plus", "minus",
+    "binary", "inverse", "tozero", "tozeroInverse",
+]
 
-# _<name>: 해당 모듈 내부용 변수
+# kernel_size를 사용하는 연산의 기본값을 한 곳에서 관리
+DEFAULT_KERNEL_SIZES: dict[PrcType, int] = {
+    "sobel": 3,
+    "laplacian": 3,
+    "gaussian": 5,
+    "blur": 5,
+    "gaussianBlur": 5,
+    "medianBlur": 5,
+    "bilateralFilter": 9,
+}
+
+
 def _to_gray(image: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
-def _op_sobel(image: np.ndarray) -> np.ndarray:
+def _ensure_odd(k: int) -> int:
+    k = max(1, k)
+    return k if k % 2 == 1 else k + 1
+
+
+# ── kernel_size 사용하는 연산 ──────────────────────────────────────────────────
+
+def _op_sobel(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    k = _ensure_odd(min(kernel_size, 7))  # Sobel ksize 최대 7
     gray = _to_gray(image)
-    grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+    grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=k)
+    grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=k)
     magnitude = cv2.magnitude(grad_x, grad_y)
     return cv2.convertScaleAbs(magnitude)
 
+
+def _op_laplacian(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    k = _ensure_odd(kernel_size)
+    gray = _to_gray(image)
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F, ksize=k)
+    return cv2.convertScaleAbs(laplacian)
+
+
+def _op_gaussian(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    k = _ensure_odd(kernel_size)
+    return cv2.GaussianBlur(image, (k, k), 0)
+
+
+def _op_blur(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    k = max(1, kernel_size)
+    return cv2.blur(image, (k, k))
+
+
+def _op_gaussian_blur(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    k = _ensure_odd(kernel_size)
+    return cv2.GaussianBlur(image, (k, k), 0)
+
+
+def _op_median_blur(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    k = _ensure_odd(kernel_size)
+    return cv2.medianBlur(image, k)
+
+
+def _op_bilateral_filter(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    return cv2.bilateralFilter(image, d=kernel_size, sigmaColor=75, sigmaSpace=75)
+
+
+# ── kernel_size 미사용 연산 ────────────────────────────────────────────────────
 
 def _op_prewitt(image: np.ndarray) -> np.ndarray:
     gray = _to_gray(image)
@@ -37,32 +97,6 @@ def _op_prewitt(image: np.ndarray) -> np.ndarray:
     prewitt_y = cv2.filter2D(gray, cv2.CV_32F, kernel_y)
     magnitude = cv2.magnitude(prewitt_x, prewitt_y)
     return cv2.convertScaleAbs(magnitude)
-
-
-def _op_laplacian(image: np.ndarray) -> np.ndarray:
-    gray = _to_gray(image)
-    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-    return cv2.convertScaleAbs(laplacian)
-
-
-def _op_gaussian(image: np.ndarray) -> np.ndarray:
-    return cv2.GaussianBlur(image, (5, 5), 0)
-
-
-def _op_blur(image: np.ndarray) -> np.ndarray:
-    return cv2.blur(image, (5, 5))
-
-
-def _op_gaussian_blur(image: np.ndarray) -> np.ndarray:
-    return cv2.GaussianBlur(image, (5, 5), 0)
-
-
-def _op_median_blur(image: np.ndarray) -> np.ndarray:
-    return cv2.medianBlur(image, 5)
-
-
-def _op_bilateral_filter(image: np.ndarray) -> np.ndarray:
-    return cv2.bilateralFilter(image, d=9, sigmaColor=75, sigmaSpace=75)
 
 
 def _op_find_contour(image: np.ndarray) -> np.ndarray:
@@ -104,7 +138,7 @@ def _op_threshold_tozero_inverse(image: np.ndarray) -> np.ndarray:
     return _op_threshold(image, THRESHOLD_TYPE_MAP["tozeroInverse"])
 
 
-OPERATIONS: dict[str, ImageOperation] = {
+OPERATIONS: dict[PrcType, ImageOperation] = {
     "sobel": _op_sobel,
     "prewitt": _op_prewitt,
     "laplacian": _op_laplacian,
@@ -123,7 +157,7 @@ OPERATIONS: dict[str, ImageOperation] = {
 }
 
 
-def process_image(prc_type: str, image_bytes: bytes) -> bytes:
+def process_image(prc_type: PrcType, image_bytes: bytes, kernel_size: int | None = None) -> bytes:
     if not image_bytes:
         raise ValueError("empty image payload")
 
@@ -132,11 +166,16 @@ def process_image(prc_type: str, image_bytes: bytes) -> bytes:
     if image is None:
         raise ValueError("invalid image payload")
 
-    operation = OPERATIONS.get(prc_type)
-    if operation is None:
+    op = OPERATIONS.get(prc_type)
+    if op is None:
         raise ValueError(f"unsupported prcType: {prc_type}")
 
-    processed = operation(image)
+    if "kernel_size" in inspect.signature(op).parameters:
+        k = kernel_size if kernel_size is not None else DEFAULT_KERNEL_SIZES[prc_type]
+        processed = op(image, k)
+    else:
+        processed = op(image)
+
     success, encoded = cv2.imencode(".png", processed)
     if not success:
         raise RuntimeError("failed to encode processed image")

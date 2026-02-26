@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
+from typing import Literal
 
 
 def to_camel(value: str) -> str:
@@ -15,6 +16,7 @@ class CamelModel(BaseModel):
     )
 
 
+FileSaveResponseOptionsKey = Literal["prcType"]
 class FileSaveResponse(CamelModel):
     id: str
     origin_nm: str
@@ -23,6 +25,7 @@ class FileSaveResponse(CamelModel):
     mime_type: str
     size_bytes: int
     uploaded_at: datetime
+    options: dict[FileSaveResponseOptionsKey, str]
 
 
 class FileListItem(CamelModel):
@@ -33,6 +36,7 @@ class FileListItem(CamelModel):
     mime_type: str
     size_bytes: int
     uploaded_at: datetime
+    options: dict[FileSaveResponseOptionsKey, str]
 
 
 class FileListResponse(CamelModel):

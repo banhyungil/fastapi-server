@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 # 절대 import
 from app.schemas.file import FileListItem, FileListResponse, FileSaveResponse
 from app.services.file_service import insert_file, list_files
-from app.services.image_processing_service import process_image
+from app.services.image_processing_service import PrcType, process_image
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -25,7 +25,6 @@ async def get_saved_images(
     cursor_id: UUID | None = Query(None, alias="cursorId"),
 ) -> FileListResponse:
     if (cursor_uploaded_at is None) != (cursor_id is None):
-        logger.exception("failed to persist file metadata")
         raise HTTPException(status_code=400, detail="cursorUploadedAt and cursorId must be provided together")
 
     page = list_files(
@@ -45,12 +44,13 @@ async def get_saved_images(
 @router.post("/image-processing", tags=["img-processing"])
 async def img_processing(
     file: UploadFile = File(...),
-    prc_type: str = Form(..., alias="prcType"),
+    prc_type: PrcType = Form(..., alias="prcType"),
+    kernel_size: int | None = Form(None, alias="kernelSize"),
 ) -> StreamingResponse:
     uploaded_file_bytes = await file.read()
 
     try:
-        processed_image_bytes = process_image(prc_type=prc_type, image_bytes=uploaded_file_bytes)
+        processed_image_bytes = process_image(prc_type=prc_type, image_bytes=uploaded_file_bytes, kernel_size=kernel_size)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -88,8 +88,10 @@ async def img_processing_save(blob: UploadFile = File(...), prc_type: str = Form
             path=saved_path,
             mime_type=blob.content_type,
             size_bytes=len(data),
+            options={"prcType": prc_type},
         )
     except Exception as exc:
+        logger.exception("failed to persist file metadata")
         if saved.exists():
             saved.unlink()
         raise HTTPException(status_code=500, detail="failed to persist file metadata") from exc
@@ -103,6 +105,7 @@ async def img_processing_save(blob: UploadFile = File(...), prc_type: str = Form
         mime_type=blob.content_type,
         size_bytes=len(data),
         uploaded_at=inserted["uploaded_at"],
+        options={"prcType": prc_type}
     )
 
 
