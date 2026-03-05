@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar, cast
 
@@ -9,6 +9,12 @@ logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+# 함수 시그니처
+def fn2(a: int) -> int:
+    return 1
+
 
 def measure_time(func: Callable[P, R]) -> Callable[P, R]:
     # 비동기 함수(coroutine) 판별 함수
@@ -32,7 +38,9 @@ def measure_time(func: Callable[P, R]) -> Callable[P, R]:
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             start = time.perf_counter()
             try:
-                return await cast(Callable[P, object], func)(*args, **kwargs)
+                # cast 함수: 타입 캐스팅 용도
+                #  coroutine 함수이므로 Awaitable 반환 타입으로 지정
+                return await cast(Callable[P, Awaitable[R]], func)(*args, **kwargs)
             finally:
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 logger.info("[timing] %s: %.2f ms", func.__name__, elapsed_ms)

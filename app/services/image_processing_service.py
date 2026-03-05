@@ -3,7 +3,9 @@ import inspect
 
 import cv2
 import numpy as np
-from typing import Literal
+
+from app.schemas.file import PrcType
+from app.utils.timing import measure_time
 
 
 ImageOperation = Callable[..., np.ndarray]
@@ -15,14 +17,6 @@ THRESHOLD_TYPE_MAP: dict[str, int] = {
     "tozero": cv2.THRESH_TOZERO,
     "tozeroInverse": cv2.THRESH_TOZERO_INV,
 }
-
-PrcType = Literal[
-    "sobel", "prewitt", "laplacian",
-    "gaussian", "blur", "gaussianBlur", "medianBlur", "bilateralFilter",
-    "findContour",
-    "plus", "minus",
-    "binary", "inverse", "tozero", "tozeroInverse",
-]
 
 # kernel_size를 사용하는 연산의 기본값을 한 곳에서 관리
 DEFAULT_KERNEL_SIZES: dict[PrcType, int] = {
@@ -155,7 +149,6 @@ OPERATIONS: dict[PrcType, ImageOperation] = {
     "tozero": _op_threshold_tozero,
     "tozeroInverse": _op_threshold_tozero_inverse,
 }
-
 
 def process_image(prc_type: PrcType, image_bytes: bytes, kernel_size: int | None = None) -> bytes:
     if not image_bytes:

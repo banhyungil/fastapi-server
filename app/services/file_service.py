@@ -1,29 +1,12 @@
 from datetime import datetime
+from typing import Unpack
 from uuid import UUID
-from typing import Any
 
-from app.repos.file_repo import FileRowPage, InsertedFileMeta, insert_file_row, list_file_rows
+from app.repos.file_repo import FileRowInput, FileRowPage, InsertedFileMeta, insert_file_row, get_file_list
 
 
-def insert_file(
-    *,
-    origin_nm: str,
-    nm: str,
-    path: str,
-    mime_type: str,
-    size_bytes: int,
-    uploader_id: UUID | None = None,
-    options: dict[str, Any]
-) -> InsertedFileMeta:
-    return insert_file_row(
-        origin_nm=origin_nm,
-        nm=nm,
-        path=path,
-        mime_type=mime_type,
-        size_bytes=size_bytes,
-        uploader_id=uploader_id,
-        options=options
-    )
+def insert_file(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
+    return insert_file_row(**kwargs)
 
 
 def list_files(
@@ -32,7 +15,7 @@ def list_files(
     cursor_uploaded_at: datetime | None = None,
     cursor_id: UUID | None = None,
 ) -> FileRowPage:
-    return list_file_rows(
+    return get_file_list(
         limit=limit,
         cursor_uploaded_at=cursor_uploaded_at,
         cursor_id=cursor_id,

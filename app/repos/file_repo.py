@@ -1,11 +1,20 @@
 from datetime import datetime
-from typing import TypedDict, Any
+from typing import TypedDict, NotRequired, Any, Unpack
 from uuid import UUID
 
 import psycopg
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
+
+class FileRowInput(TypedDict):
+    origin_nm: str
+    nm: str
+    path: str
+    mime_type: str
+    size_bytes: int
+    options: dict[str, Any]
+    uploader_id: NotRequired[UUID | None]
 
 
 class InsertedFileMeta(TypedDict):
@@ -31,18 +40,13 @@ class FileRowPage(TypedDict):
     next_cursor_id: str | None
 
 
-def insert_file_row(
-    *,
-    origin_nm: str,
-    nm: str,
-    path: str,
-    mime_type: str,
-    size_bytes: int,
-    uploader_id: UUID | None = None,
-    options: dict[str, Any]
-) -> InsertedFileMeta:
+# Unpack을 이용해 키워드 파라미터에 타입 바인딩 가능
+def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
+    """T_FILE 데이터 저장
+    """
+    
 
     # with: context manager
     # 기본 형태: with 객체 as 변수:
@@ -57,7 +61,7 @@ def insert_file_row(
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, uploaded_at
                 """,
-                (origin_nm, nm, path, mime_type, size_bytes, uploader_id, Jsonb(options)),
+                (kwargs["origin_nm"], kwargs["nm"], kwargs["path"], kwargs["mime_type"], kwargs["size_bytes"], kwargs.get("uploader_id"), Jsonb(kwargs["options"])),
             )
             row = cursor.fetchone()
 
@@ -72,7 +76,7 @@ def insert_file_row(
     }
 
 
-def list_file_rows(
+def get_file_list(
     *,
     limit: int,
     cursor_uploaded_at: datetime | None = None,
