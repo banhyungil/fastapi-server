@@ -10,12 +10,6 @@ logger = logging.getLogger(__name__)
 P = ParamSpec("P")
 R = TypeVar("R")
 
-
-# 함수 시그니처
-def fn2(a: int) -> int:
-    return 1
-
-
 def measure_time(func: Callable[P, R]) -> Callable[P, R]:
     # 비동기 함수(coroutine) 판별 함수
     ## co-routine = “협력(co)하는 루틴(routine)”.
