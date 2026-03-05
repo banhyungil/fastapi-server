@@ -61,25 +61,24 @@ COMMENT ON COLUMN public.t_image_process.created_at IS '세션 생성 일시';
 COMMENT ON COLUMN public.t_image_process.updated_at IS '최종 수정 일시';
 COMMENT ON COLUMN public.t_image_process.total_execution_ms IS '전체 연산에 소요된 총 시간 (밀리초, ms)';
 
-
 -- public.t_preset_step definition
 
 -- Drop table
 
 -- DROP TABLE public.t_preset_step;
 
-CREATE TABLE public.t_preset_step ( id uuid DEFAULT gen_random_uuid() NOT NULL , preset_id uuid NOT NULL , step_order int4 NOT NULL , algorithm_nm text NOT NULL , parameters jsonb DEFAULT '{}'::jsonb NOT NULL , is_enabled bool DEFAULT true NOT NULL , CONSTRAINT t_preset_step_order_check CHECK ((step_order >= 0)), CONSTRAINT t_preset_step_pkey PRIMARY KEY (id), CONSTRAINT fk_preset_step_master FOREIGN KEY (preset_id) REFERENCES public.t_preset(id) ON DELETE CASCADE);
-CREATE INDEX ix_t_preset_step_preset_id ON public.t_preset_step USING btree (preset_id, step_order);
-COMMENT ON TABLE public.t_preset_step IS '프리셋별 알고리즘 구성 정보: 특정 프리셋 호출 시 복제될 알고리즘 설계도';
+CREATE TABLE public.t_preset_step ( id uuid DEFAULT gen_random_uuid() NOT NULL , preset_id uuid NOT NULL , parent_id uuid NULL , step_order int4 DEFAULT 0 NOT NULL , algorithm_nm text NOT NULL , parameters jsonb DEFAULT '{}'::jsonb NOT NULL , created_at timestamptz DEFAULT now() NOT NULL , CONSTRAINT t_preset_step_order_check CHECK ((step_order >= 0)), CONSTRAINT t_preset_step_pkey PRIMARY KEY (id));
+COMMENT ON TABLE public.t_preset_step IS '프리셋 상세 단계: 트리 구조의 알고리즘 설계도를 저장하여 복합 연산 흐름을 정의함';
 
 -- Column comments
 
 COMMENT ON COLUMN public.t_preset_step.id IS '프리셋 단계 고유 식별자 (UUID)';
-COMMENT ON COLUMN public.t_preset_step.preset_id IS '소속된 프리셋 ID (t_preset 참조)';
-COMMENT ON COLUMN public.t_preset_step.step_order IS '알고리즘 적용 순서 (0부터 시작하는 직렬 연산 순서)';
-COMMENT ON COLUMN public.t_preset_step.algorithm_nm IS '적용할 알고리즘 식별 명칭 (Backend 엔진 매핑용)';
-COMMENT ON COLUMN public.t_preset_step.parameters IS '알고리즘별 기본 설정값 (JSONB 형태의 템플릿 데이터)';
-COMMENT ON COLUMN public.t_preset_step.is_enabled IS '해당 단계의 기본 활성화 여부';
+COMMENT ON COLUMN public.t_preset_step.preset_id IS '소속된 프리셋 마스터 ID (t_preset 참조)';
+COMMENT ON COLUMN public.t_preset_step.parent_id IS '부모 노드 ID (NULL이면 루트/시작점, 값이 있으면 해당 노드의 결과를 입력으로 받음)';
+COMMENT ON COLUMN public.t_preset_step.step_order IS '동일 부모 내에서 노드 간의 정렬 순서 (0부터 시작)';
+COMMENT ON COLUMN public.t_preset_step.algorithm_nm IS '적용할 알고리즘 식별 명칭 (예: gaussian_blur, canny_edge 등)';
+COMMENT ON COLUMN public.t_preset_step.parameters IS '해당 알고리즘 노드의 기본 설정값 (JSONB 형태)';
+COMMENT ON COLUMN public.t_preset_step.created_at IS '생성일자';
 
 
 -- public.t_process_step definition
@@ -88,18 +87,33 @@ COMMENT ON COLUMN public.t_preset_step.is_enabled IS '해당 단계의 기본 �
 
 -- DROP TABLE public.t_process_step;
 
-CREATE TABLE public.t_process_step ( id uuid DEFAULT gen_random_uuid() NOT NULL , process_id uuid NOT NULL , preset_id uuid NULL , step_order int4 NOT NULL , algorithm_nm text NOT NULL , parameters jsonb DEFAULT '{}'::jsonb NOT NULL , is_enabled bool DEFAULT true NOT NULL , created_at timestamptz DEFAULT now() NOT NULL, execution_ms int8 NULL , CONSTRAINT t_process_step_order_check CHECK ((step_order >= 0)), CONSTRAINT t_process_step_pkey PRIMARY KEY (id), CONSTRAINT fk_step_preset FOREIGN KEY (preset_id) REFERENCES public.t_preset(id) ON DELETE SET NULL, CONSTRAINT fk_step_process FOREIGN KEY (process_id) REFERENCES public.t_image_process(id) ON DELETE CASCADE);
-CREATE INDEX ix_t_process_step_preset_id ON public.t_process_step USING btree (preset_id);
-CREATE INDEX ix_t_process_step_process_id ON public.t_process_step USING btree (process_id, step_order);
-COMMENT ON TABLE public.t_process_step IS '이미지 처리 상세 단계: 실제 작업 세션에 적용된 알고리즘 스냅샷';
+CREATE TABLE public.t_process_step ( id uuid DEFAULT gen_random_uuid() NOT NULL , process_id uuid NOT NULL , parent_id uuid NULL , preset_id uuid NULL , step_order int4 NOT NULL , algorithm_nm text NOT NULL , parameters jsonb DEFAULT '{}'::jsonb NOT NULL , execution_ms int8 NULL , is_enabled bool DEFAULT true NOT NULL , created_at timestamptz DEFAULT now() NOT NULL , CONSTRAINT t_process_step_order_check CHECK ((step_order >= 0)), CONSTRAINT t_process_step_pkey PRIMARY KEY (id));
+CREATE INDEX ix_t_process_step_parent_id ON public.t_process_step USING btree (parent_id);
+CREATE INDEX ix_t_process_step_process_id ON public.t_process_step USING btree (process_id);
+COMMENT ON TABLE public.t_process_step IS '이미지 처리 상세 단계: 실제 작업 세션에 적용된 알고리즘 노드들의 트리 구조와 실행 이력을 저장함';
 
 -- Column comments
 
 COMMENT ON COLUMN public.t_process_step.id IS '단계 고유 식별자 (UUID)';
 COMMENT ON COLUMN public.t_process_step.process_id IS '소속된 편집 세션 ID (t_image_process 참조)';
-COMMENT ON COLUMN public.t_process_step.preset_id IS '참조된 프리셋 ID (프리셋 삭제 시 NULL 유지)';
-COMMENT ON COLUMN public.t_process_step.step_order IS '알고리즘 적용 순서 (0부터 시작)';
-COMMENT ON COLUMN public.t_process_step.algorithm_nm IS '적용할 알고리즘 식별 명칭 (예: gaussian_blur)';
-COMMENT ON COLUMN public.t_process_step.parameters IS '실제 적용된 설정값 (프리셋에서 복사된 후 독립적으로 수정 가능)';
-COMMENT ON COLUMN public.t_process_step.is_enabled IS '해당 단계의 활성화 여부';
-COMMENT ON COLUMN public.t_process_step.execution_ms IS '해당 알고리즘 단계의 연산 소요 시간 (밀리초, ms)';
+COMMENT ON COLUMN public.t_process_step.parent_id IS '부모 노드 ID (NULL이면 시작점, 값이 있으면 이전 노드의 출력값을 입력으로 받는 트리 구조)';
+COMMENT ON COLUMN public.t_process_step.preset_id IS '이 단계를 생성할 때 참조한 프리셋 ID (선택 사항)';
+COMMENT ON COLUMN public.t_process_step.step_order IS '동일 부모 내에서의 노드 정렬 순서 (0부터 시작)';
+COMMENT ON COLUMN public.t_process_step.algorithm_nm IS '적용된 알고리즘 식별 명칭 (예: gaussian_blur, sharpen 등)';
+COMMENT ON COLUMN public.t_process_step.parameters IS '실제 연산에 사용된 파라미터 값 (Pydantic 모델 스냅샷)';
+COMMENT ON COLUMN public.t_process_step.execution_ms IS '해당 노드의 알고리즘 연산 소요 시간 (밀리초 단위)';
+COMMENT ON COLUMN public.t_process_step.is_enabled IS '해당 노드의 활성화 여부 (비활성화 시 하위 트리 연산에 영향)';
+COMMENT ON COLUMN public.t_process_step.created_at IS '노드 생성 일시';
+
+
+-- public.t_preset_step foreign keys
+
+ALTER TABLE public.t_preset_step ADD CONSTRAINT fk_preset_master FOREIGN KEY (preset_id) REFERENCES public.t_preset(id) ON DELETE CASCADE;
+ALTER TABLE public.t_preset_step ADD CONSTRAINT fk_preset_parent FOREIGN KEY (parent_id) REFERENCES public.t_preset_step(id) ON DELETE CASCADE;
+
+
+-- public.t_process_step foreign keys
+
+ALTER TABLE public.t_process_step ADD CONSTRAINT fk_step_parent FOREIGN KEY (parent_id) REFERENCES public.t_process_step(id) ON DELETE CASCADE;
+ALTER TABLE public.t_process_step ADD CONSTRAINT fk_step_preset FOREIGN KEY (preset_id) REFERENCES public.t_preset(id) ON DELETE SET NULL;
+ALTER TABLE public.t_process_step ADD CONSTRAINT fk_step_process FOREIGN KEY (process_id) REFERENCES public.t_image_process(id) ON DELETE CASCADE;

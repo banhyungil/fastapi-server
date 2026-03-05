@@ -8,17 +8,17 @@ from app.schemas.file import CamelModel
 
 class PresetStepBase(CamelModel):
     algorithm_nm: str = Field(..., description="알고리즘 식별 명칭")
-    step_order: int = Field(..., ge=0, description="적용 순서 (0부터)")
+    step_order: int = Field(0, ge=0, description="동일 부모 내 정렬 순서 (0부터)")
     parameters: dict[str, Any] = Field(default_factory=dict, description="알고리즘 파라미터")
-    is_enabled: bool = Field(True, description="활성화 여부")
 
 
 class PresetStepCreate(PresetStepBase):
-    pass
+    parent_id: str | None = Field(None, description="부모 노드 ID (NULL이면 루트)")
 
 
 class PresetStepResponse(PresetStepBase):
     id: str = Field(..., description="프리셋 단계 ID")
+    parent_id: str | None = Field(None, description="부모 노드 ID")
 
 
 class PresetCreate(CamelModel):

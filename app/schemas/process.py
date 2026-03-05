@@ -12,6 +12,7 @@ class ProcessStepBase(CamelModel):
     parameters: dict[str, Any] = Field(default_factory=dict, description="알고리즘 파라미터")
     is_enabled: bool = Field(True, description="활성화 여부")
     preset_id: str | None = Field(None, description="참조 프리셋 ID")
+    parent_id: str | None = Field(None, description="부모 노드 ID (NULL이면 루트)")
 
 
 class ProcessStepCreate(ProcessStepBase):

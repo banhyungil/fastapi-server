@@ -49,13 +49,15 @@ def _insert_steps(
     for step in steps:
         cur.execute(
             """
-            INSERT INTO t_process_step (process_id, preset_id, step_order, algorithm_nm, parameters, is_enabled)
-            VALUES (%s::uuid, %s, %s, %s, %s, %s)
-            RETURNING id::text, process_id::text, preset_id::text, step_order,
+            INSERT INTO t_process_step
+                (process_id, parent_id, preset_id, step_order, algorithm_nm, parameters, is_enabled)
+            VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s)
+            RETURNING id::text, process_id::text, parent_id::text, preset_id::text, step_order,
                       algorithm_nm, parameters, is_enabled, created_at, execution_ms
             """,
             (
                 process_id,
+                step.get("parent_id"),
                 step.get("preset_id"),
                 step["step_order"],
                 step["algorithm_nm"],
@@ -73,13 +75,14 @@ def _step_row_to_dict(r: tuple[Any, ...]) -> dict[str, Any]:
     return {
         "id": r[0],
         "process_id": r[1],
-        "preset_id": r[2],
-        "step_order": r[3],
-        "algorithm_nm": r[4],
-        "parameters": r[5],
-        "is_enabled": r[6],
-        "created_at": r[7],
-        "execution_ms": r[8],
+        "parent_id": r[2],
+        "preset_id": r[3],
+        "step_order": r[4],
+        "algorithm_nm": r[5],
+        "parameters": r[6],
+        "is_enabled": r[7],
+        "created_at": r[8],
+        "execution_ms": r[9],
     }
 
 
@@ -95,6 +98,20 @@ def _row_to_dict(row: tuple[Any, ...], steps: list[dict[str, Any]]) -> dict[str,
         "updated_at": row[7],
         "steps": steps,
     }
+
+
+def _fetch_steps(cur: psycopg.Cursor[Any], process_id: str) -> list[dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT id::text, process_id::text, parent_id::text, preset_id::text, step_order,
+               algorithm_nm, parameters, is_enabled, created_at, execution_ms
+        FROM t_process_step
+        WHERE process_id = %s::uuid
+        ORDER BY step_order
+        """,
+        (process_id,),
+    )
+    return [_step_row_to_dict(s) for s in cur.fetchall()]
 
 
 def get_process_list(*, file_id: str | None = None) -> list[dict[str, Any]]:
@@ -117,17 +134,7 @@ def get_process_list(*, file_id: str | None = None) -> list[dict[str, Any]]:
 
             result: list[dict[str, Any]] = []
             for p in processes:
-                cur.execute(
-                    """
-                    SELECT id::text, process_id::text, preset_id::text, step_order,
-                           algorithm_nm, parameters, is_enabled, created_at, execution_ms
-                    FROM t_process_step
-                    WHERE process_id = %s::uuid
-                    ORDER BY step_order
-                    """,
-                    (p[0],),
-                )
-                steps = [_step_row_to_dict(s) for s in cur.fetchall()]
+                steps = _fetch_steps(cur, p[0])
                 result.append(_row_to_dict(p, steps))
     return result
 
@@ -149,17 +156,7 @@ def get_process_by_id(process_id: str) -> dict[str, Any] | None:
             if row is None:
                 return None
 
-            cur.execute(
-                """
-                SELECT id::text, process_id::text, preset_id::text, step_order,
-                       algorithm_nm, parameters, is_enabled, created_at, execution_ms
-                FROM t_process_step
-                WHERE process_id = %s::uuid
-                ORDER BY step_order
-                """,
-                (process_id,),
-            )
-            steps = [_step_row_to_dict(s) for s in cur.fetchall()]
+            steps = _fetch_steps(cur, process_id)
 
     return _row_to_dict(row, steps)
 

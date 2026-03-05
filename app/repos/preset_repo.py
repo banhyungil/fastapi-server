@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any
 
 import psycopg
@@ -54,26 +53,55 @@ def _insert_steps(
     preset_id: str,
     steps: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """트리 구조 노드 삽입. parent_id가 None이면 루트 노드."""
     result: list[dict[str, Any]] = []
     for step in steps:
         cur.execute(
             """
-            INSERT INTO t_preset_step (preset_id, step_order, algorithm_nm, parameters, is_enabled)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id::text, step_order, algorithm_nm, parameters, is_enabled
+            INSERT INTO t_preset_step (preset_id, parent_id, step_order, algorithm_nm, parameters)
+            VALUES (%s::uuid, %s::uuid, %s, %s, %s)
+            RETURNING id::text, parent_id::text, step_order, algorithm_nm, parameters
             """,
-            (preset_id, step["step_order"], step["algorithm_nm"], Jsonb(step.get("parameters", {})), step.get("is_enabled", True)),
+            (
+                preset_id,
+                step.get("parent_id"),
+                step.get("step_order", 0),
+                step["algorithm_nm"],
+                Jsonb(step.get("parameters", {})),
+            ),
         )
         r = cur.fetchone()
         if r:
             result.append({
                 "id": r[0],
-                "step_order": r[1],
-                "algorithm_nm": r[2],
-                "parameters": r[3],
-                "is_enabled": r[4],
+                "parent_id": r[1],
+                "step_order": r[2],
+                "algorithm_nm": r[3],
+                "parameters": r[4],
             })
     return result
+
+
+def _fetch_steps(cur: psycopg.Cursor[Any], preset_id: str) -> list[dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT id::text, parent_id::text, step_order, algorithm_nm, parameters
+        FROM t_preset_step
+        WHERE preset_id = %s::uuid
+        ORDER BY step_order
+        """,
+        (preset_id,),
+    )
+    return [
+        {
+            "id": s[0],
+            "parent_id": s[1],
+            "step_order": s[2],
+            "algorithm_nm": s[3],
+            "parameters": s[4],
+        }
+        for s in cur.fetchall()
+    ]
 
 
 def get_preset_list() -> list[dict[str, Any]]:
@@ -91,25 +119,7 @@ def get_preset_list() -> list[dict[str, Any]]:
 
             result: list[dict[str, Any]] = []
             for p in presets:
-                cur.execute(
-                    """
-                    SELECT id::text, step_order, algorithm_nm, parameters, is_enabled
-                    FROM t_preset_step
-                    WHERE preset_id = %s::uuid
-                    ORDER BY step_order
-                    """,
-                    (p[0],),
-                )
-                steps = [
-                    {
-                        "id": s[0],
-                        "step_order": s[1],
-                        "algorithm_nm": s[2],
-                        "parameters": s[3],
-                        "is_enabled": s[4],
-                    }
-                    for s in cur.fetchall()
-                ]
+                steps = _fetch_steps(cur, p[0])
                 result.append({
                     "id": p[0],
                     "nm": p[1],
@@ -138,25 +148,7 @@ def get_preset_by_id(preset_id: str) -> dict[str, Any] | None:
             if row is None:
                 return None
 
-            cur.execute(
-                """
-                SELECT id::text, step_order, algorithm_nm, parameters, is_enabled
-                FROM t_preset_step
-                WHERE preset_id = %s::uuid
-                ORDER BY step_order
-                """,
-                (preset_id,),
-            )
-            steps = [
-                {
-                    "id": s[0],
-                    "step_order": s[1],
-                    "algorithm_nm": s[2],
-                    "parameters": s[3],
-                    "is_enabled": s[4],
-                }
-                for s in cur.fetchall()
-            ]
+            steps = _fetch_steps(cur, preset_id)
 
     return {
         "id": row[0],
@@ -179,12 +171,10 @@ def update_preset(
     _ensure_db()
     with psycopg.connect(settings.database_url) as conn:
         with conn.cursor() as cur:
-            # 존재 확인
             cur.execute("SELECT id FROM t_preset WHERE id = %s::uuid", (preset_id,))
             if cur.fetchone() is None:
                 return None
 
-            # 마스터 업데이트
             updates: list[str] = ["updated_at = now()"]
             params: list[Any] = []
             if nm is not None:
@@ -200,7 +190,6 @@ def update_preset(
                 params,
             )
 
-            # steps 전체 교체
             if steps is not None:
                 cur.execute("DELETE FROM t_preset_step WHERE preset_id = %s::uuid", (preset_id,))
                 _insert_steps(cur, preset_id, steps)

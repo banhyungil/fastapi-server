@@ -16,7 +16,8 @@ from pydantic import ValidationError
 # 절대 import
 from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, PrcType
 from app.services.file_service import insert_file, list_files
-from app.services.image_processing_service import process_image, process_image_batch, PARAM_MODELS
+from app.schemas.image_processing import PARAM_MODELS
+from app.services.image_processing_service import process_image, process_image_batch
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
