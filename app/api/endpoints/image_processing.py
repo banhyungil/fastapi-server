@@ -83,7 +83,6 @@ async def img_processing(
             "brightness": {"summary": "plus/minus", "value": '{"alpha": 1.2, "beta": 50}'},
         },
     )] = None,
-    kernel_size: Annotated[int | None, Form(alias="kernelSize", description="(deprecated) kernelSize만 전달 시 하위 호환")] = None,
 ) -> StreamingResponse:
     """이미지 처리"""
 
@@ -94,10 +93,6 @@ async def img_processing(
             params_dict = json.loads(parameters)
         except json.JSONDecodeError as exc:
             raise HTTPException(status_code=400, detail=f"invalid parameters JSON: {exc}") from exc
-
-    # 하위 호환: kernelSize만 보낸 경우
-    if params_dict is None and kernel_size is not None:
-        params_dict = {"kernelSize": kernel_size}
 
     uploaded_file_bytes = await file.read()
 
