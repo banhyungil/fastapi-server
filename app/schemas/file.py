@@ -67,6 +67,17 @@ class TFile(CamelModel):
     options: FileSaveOptions = Field(..., description="처리 시 적용된 옵션")
 
 
+class TreeNodeResultResponse(CamelModel):
+    node_id: str = Field(..., description="노드 고유 식별자")
+    thumbnail: str = Field(..., description="처리 결과 썸네일 (base64 PNG)")
+    execution_ms: float = Field(..., description="해당 노드 처리 시간 (ms)")
+
+
+class TreeBatchResponse(CamelModel):
+    total_execution_ms: float = Field(..., description="전체 트리 처리 시간 (ms)")
+    results: list[TreeNodeResultResponse] = Field(..., description="노드별 처리 결과")
+
+
 class FileListResponse(CamelModel):
     items: list[TFile] = Field(..., description="파일 목록")
     has_more: bool = Field(..., description="다음 페이지 존재 여부")

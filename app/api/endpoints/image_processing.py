@@ -14,10 +14,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 # 절대 import
-from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, PrcType
+from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, PrcType, TreeBatchResponse, TreeNodeResultResponse
 from app.services.file_service import insert_file, list_files
 from app.schemas.image_processing import PARAM_MODELS
-from app.services.image_processing_service import process_image, process_image_batch
+from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -216,4 +216,59 @@ async def img_processing_batch(
             "X-Total-Process-Time-Ms": f"{result.total_execution_ms:.2f}",
             "X-Step-Times": step_times,
         },
+    )
+
+
+@router.post("/image-processing/batch-tree", tags=["img-processing"], response_model=TreeBatchResponse)
+async def img_processing_batch_tree(
+    file: Annotated[UploadFile, File(description="입력 이미지 (전체 실행=원본, 부분 실행=부모 노드 결과)")],
+    steps: Annotated[str, Form(
+        description='트리 형태 처리 단계 JSON 배열. 예: [{"nodeId":"n1","prcType":"gaussianBlur","parameters":{},"parentId":null}]',
+    )],
+) -> TreeBatchResponse:
+    """트리 구조 배치 이미지 처리.
+
+    parentId로 트리를 구성하며, 같은 parentId를 가진 노드들은 분기(비교) 처리된다.
+    전체 실행 시 원본 이미지를, 부분 재실행 시 부모 노드의 결과 이미지를 file로 전송한다.
+    """
+
+    try:
+        steps_list: list[dict[str, Any]] = json.loads(steps)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid steps JSON: {exc}") from exc
+
+    if not isinstance(steps_list, list) or len(steps_list) == 0:
+        raise HTTPException(status_code=400, detail="steps must be a non-empty array")
+
+    # nodeId 필수 검증
+    for i, step in enumerate(steps_list):
+        if "nodeId" not in step:
+            raise HTTPException(status_code=400, detail=f"steps[{i}] missing required field: nodeId")
+        if "prcType" not in step:
+            raise HTTPException(status_code=400, detail=f"steps[{i}] missing required field: prcType")
+
+    uploaded_file_bytes = await file.read()
+
+    try:
+        result = process_image_batch_tree(
+            image_bytes=uploaded_file_bytes,
+            steps=steps_list,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.errors()) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return TreeBatchResponse(
+        total_execution_ms=result.total_execution_ms,
+        results=[
+            TreeNodeResultResponse(
+                node_id=nr.node_id,
+                thumbnail=nr.thumbnail,
+                execution_ms=nr.execution_ms,
+            )
+            for nr in result.node_results
+        ],
     )

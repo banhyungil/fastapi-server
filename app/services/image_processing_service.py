@@ -392,3 +392,126 @@ def process_image_batch(
         steps=step_results,
         total_execution_ms=round(total_ms, 2),
     )
+
+
+# ── 썸네일 생성 ──────────────────────────────────────────────────────────────
+
+THUMBNAIL_SIZE = 150
+
+def _make_thumbnail_base64(image: np.ndarray, max_size: int = THUMBNAIL_SIZE) -> str:
+    """numpy 이미지를 저해상도 base64 PNG 문자열로 변환한다."""
+    import base64
+
+    h, w = image.shape[:2]
+    scale = max_size / max(h, w)
+    if scale < 1.0:
+        new_w, new_h = int(w * scale), int(h * scale)
+        resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    else:
+        resized = image
+
+    success, encoded = cv2.imencode(".png", resized)
+    if not success:
+        raise RuntimeError("failed to encode thumbnail")
+
+    return base64.b64encode(encoded.tobytes()).decode("ascii")
+
+
+# ── 트리 배치 처리 ───────────────────────────────────────────────────────────
+
+class TreeNodeResult:
+    __slots__ = ("node_id", "thumbnail", "execution_ms")
+
+    def __init__(self, node_id: str, thumbnail: str, execution_ms: float) -> None:
+        self.node_id = node_id
+        self.thumbnail = thumbnail
+        self.execution_ms = execution_ms
+
+
+class TreeBatchResult:
+    __slots__ = ("node_results", "total_execution_ms")
+
+    def __init__(self, node_results: list[TreeNodeResult], total_execution_ms: float) -> None:
+        self.node_results = node_results
+        self.total_execution_ms = total_execution_ms
+
+
+def process_image_batch_tree(
+    image_bytes: bytes,
+    steps: list[dict[str, Any]],
+) -> TreeBatchResult:
+    """트리 구조의 steps를 DFS로 순회하며 이미지를 처리한다.
+
+    각 step은 { nodeId, prcType, parameters, parentId } 형태.
+    parentId가 null이면 루트 노드(입력 이미지를 직접 받음).
+    같은 parentId를 가진 siblings는 동일 입력에 서로 다른 알고리즘을 적용(분기).
+    """
+    import time
+
+    if not image_bytes:
+        raise ValueError("empty image payload")
+
+    image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+    root_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+    if root_image is None:
+        raise ValueError("invalid image payload")
+
+    # parentId → children 맵 구축
+    children_map: dict[str | None, list[dict[str, Any]]] = {}
+    for step in steps:
+        parent_id = step.get("parentId")
+        children_map.setdefault(parent_id, []).append(step)
+
+    # 노드별 결과 이미지 저장 (nodeId → numpy array)
+    node_images: dict[str, np.ndarray] = {}
+    node_results: list[TreeNodeResult] = []
+
+    total_start = time.perf_counter()
+
+    # DFS 순회 (스택 기반)
+    # (step, parent_image) 튜플을 스택에 넣음
+    stack: list[tuple[dict[str, Any], np.ndarray]] = []
+
+    # 루트 노드들을 스택에 추가 (step_order 역순으로 넣어 정순 처리)
+    roots = children_map.get(None, [])
+    for step in reversed(roots):
+        stack.append((step, root_image))
+
+    while stack:
+        step, parent_image = stack.pop()
+
+        node_id: str = step["nodeId"]
+        prc_type: PrcType = step["prcType"]
+        parameters: dict[str, Any] = step.get("parameters", {})
+
+        op = OPERATIONS.get(prc_type)
+        if op is None:
+            raise ValueError(f"unsupported prcType: {prc_type}")
+
+        param_cls = PARAM_MODELS[prc_type]
+        params = param_cls.model_validate(parameters)
+
+        step_start = time.perf_counter()
+        result_image = op(parent_image, params)
+        step_ms = (time.perf_counter() - step_start) * 1000
+
+        node_images[node_id] = result_image
+
+        thumbnail = _make_thumbnail_base64(result_image)
+        node_results.append(TreeNodeResult(
+            node_id=node_id,
+            thumbnail=thumbnail,
+            execution_ms=round(step_ms, 2),
+        ))
+
+        # 자식 노드들을 스택에 추가
+        children = children_map.get(node_id, [])
+        for child in reversed(children):
+            stack.append((child, result_image))
+
+    total_ms = (time.perf_counter() - total_start) * 1000
+
+    return TreeBatchResult(
+        node_results=node_results,
+        total_execution_ms=round(total_ms, 2),
+    )
