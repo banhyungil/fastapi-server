@@ -14,8 +14,8 @@
 | ✅ 프르윗 (Prewitt) | `prewitt` | - | Sobel과 유사, 가중치 균일 |
 | ✅ 라플라시안 (Laplacian) | `laplacian` | 3 | 2차 미분. 방향 무관 엣지 검출, 노이즈에 민감 |
 | ✅ 가우시안 (Gaussian) | `gaussian` | 5 | 스무딩 후 엣지 강조 (LoG 방식) |
-| Canny | - | - | 다단계 엣지 검출, 가장 정밀 |
-| Roberts | - | - | 대각선 방향 미분 |
+| ✅ Canny | `canny` | - | 다단계 엣지 검출, 가장 정밀 |
+| ✅ Roberts | `roberts` | - | 대각선 방향 미분 |
 
 ---
 
@@ -29,7 +29,7 @@
 | ✅ 가우시안 블러 (Gaussian Blur) | `gaussianBlur` | 5 | 가우시안 가중 평균. 자연스러운 블러 |
 | ✅ 중앙값 블러 (Median Blur) | `medianBlur` | 5 | 중앙값 사용. salt-and-pepper 노이즈 제거에 효과적 |
 | ✅ 양방향 필터 (Bilateral Filter) | `bilateralFilter` | 9 | 엣지 보존 블러. 색상/공간 거리 동시 고려 |
-| Box Filter | - | - | Average Blur와 유사, 정규화 옵션 있음 |
+| ✅ Box Filter | `boxFilter` | 5 | Average Blur와 유사, 정규화 옵션 있음 |
 
 ---
 
@@ -40,8 +40,8 @@
 | 필터 | prcType | 특징 |
 |------|---------|------|
 | ✅ Find Contour | `findContour` | 이진화 후 윤곽선 검출 및 시각화 |
-| Convex Hull | - | 윤곽선의 볼록 껍질 |
-| Bounding Box | - | 윤곽선의 외접 사각형 |
+| ✅ Convex Hull | `convexHull` | 윤곽선의 볼록 껍질 |
+| ✅ Bounding Box | `boundingBox` | 윤곽선의 외접 사각형 |
 
 ---
 
@@ -53,8 +53,8 @@
 |------|---------|------|
 | ✅ 밝기 증가 | `plus` | 픽셀 + 상수 (클리핑: max 255) |
 | ✅ 밝기 감소 | `minus` | 픽셀 - 상수 (클리핑: min 0) |
-| 감마 보정 | - | 비선형 밝기 변환 |
-| 히스토그램 평탄화 | - | 밝기 분포 균등화 |
+| ✅ 감마 보정 | `gamma` | 비선형 밝기 변환 |
+| ✅ 히스토그램 평탄화 | `histogramEqualization` | 밝기 분포 균등화 |
 
 ---
 
@@ -68,29 +68,26 @@
 | ✅ Inverse | `inverse` | Binary 반전 |
 | ✅ Tozero | `tozero` | 임계값 미만 → 0, 이상 → 원본 유지 |
 | ✅ TozeroInverse | `tozeroInverse` | Tozero 반전 |
-| Truncate | - | 임계값 초과 → 임계값으로 클리핑 |
-| Otsu | - | 자동 임계값 결정 |
-| Adaptive | - | 영역별 로컬 임계값 적용 |
+| ✅ Truncate | `truncate` | 임계값 초과 → 임계값으로 클리핑 |
+| ✅ Otsu | `otsu` | 자동 임계값 결정 |
+| ✅ Adaptive | `adaptive` | 영역별 로컬 임계값 적용 |
 
 ---
 
 ## 6. 형태학적 처리 (Morphological)
 
-> 미구현 카테고리
-
-| 필터 | 특징 |
-|------|------|
-| 침식 (Erosion) | 객체 축소, 노이즈 제거 |
-| 팽창 (Dilation) | 객체 확장 |
-| 열기 (Opening) | 침식 후 팽창. 작은 노이즈 제거 |
-| 닫기 (Closing) | 팽창 후 침식. 작은 구멍 메움 |
+| 필터 | prcType | 특징 |
+|------|---------|------|
+| ✅ 침식 (Erosion) | `erosion` | 객체 축소, 노이즈 제거 |
+| ✅ 팽창 (Dilation) | `dilation` | 객체 확장 |
+| ✅ 열기 (Opening) | `opening` | 침식 후 팽창. 작은 노이즈 제거 |
+| ✅ 닫기 (Closing) | `closing` | 팽창 후 침식. 작은 구멍 메움 |
 
 ---
 
 ## 필터별 조절 가능한 파라미터
 
-> 각 OpenCV 함수가 지원하는 실험 가능한 파라미터 목록.
-> 현재 코드에서 고정된 값은 **고정값**으로 표기.
+> `parameters` JSON 필드로 전달. 생략 시 기본값 사용.
 
 ---
 
@@ -98,31 +95,36 @@
 
 #### `sobel` — `cv2.Sobel()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `ksize` | int | 3 | 1, 3, 5, 7 | 커널 크기 (홀수, 최대 7) |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `kernelSize` | int | 3 | 1, 3, 5, 7 | 커널 크기 (홀수, 최대 7) |
 | `dx` | int | 1 | 0, 1, 2 | x 방향 미분 차수 |
 | `dy` | int | 1 | 0, 1, 2 | y 방향 미분 차수 |
-| `scale` | float | 1 | 0.5 ~ 4.0 | 미분 결과에 곱하는 스케일 |
-| `delta` | float | 0 | -128 ~ 128 | 결과에 더하는 오프셋 |
-| `borderType` | enum | `BORDER_DEFAULT` | `BORDER_REPLICATE`, `BORDER_REFLECT`, `BORDER_CONSTANT` 등 | 경계 처리 방식 |
+| `scale` | float | 1.0 | 0.5 ~ 4.0 | 미분 결과에 곱하는 스케일 |
 
 #### `prewitt` — `cv2.filter2D()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `kernel` | ndarray | 고정 3x3 | 커스텀 커널 | Prewitt 연산자 (현재 하드코딩) |
-| `delta` | float | 0 | -128 ~ 128 | 결과에 더하는 오프셋 |
-| `borderType` | enum | `BORDER_DEFAULT` | `BORDER_REPLICATE`, `BORDER_REFLECT` 등 | 경계 처리 방식 |
+파라미터 없음. 고정 3x3 Prewitt 커널 사용.
 
 #### `laplacian` — `cv2.Laplacian()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `ksize` | int | 3 | 1, 3, 5, 7 | 커널 크기 (홀수) |
-| `scale` | float | 1 | 0.5 ~ 4.0 | 미분 결과 스케일 |
-| `delta` | float | 0 | -128 ~ 128 | 결과 오프셋 |
-| `borderType` | enum | `BORDER_DEFAULT` | `BORDER_REPLICATE`, `BORDER_REFLECT` 등 | 경계 처리 방식 |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `kernelSize` | int | 3 | 1, 3, 5, 7 | 커널 크기 (홀수) |
+| `scale` | float | 1.0 | 0.5 ~ 4.0 | 미분 결과 스케일 |
+| `delta` | float | 0.0 | -128 ~ 128 | 결과 오프셋 |
+
+#### `canny` — `cv2.Canny()`
+
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `threshold1` | float | 100.0 | 0 ~ 500 | 하단 임계값 |
+| `threshold2` | float | 200.0 | 0 ~ 500 | 상단 임계값 |
+| `apertureSize` | int | 3 | 3, 5, 7 | Sobel 연산자 크기 |
+
+#### `roberts` — `cv2.filter2D()`
+
+파라미터 없음. 고정 2x2 Roberts cross 커널 사용.
 
 ---
 
@@ -130,50 +132,48 @@
 
 #### `blur` — `cv2.blur()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `ksize` | (int, int) | (5, 5) | (1,1) ~ (31,31) | 커널 크기 (홀짝 무관, 비대칭 가능) |
-| `anchor` | (int, int) | (-1, -1) = 중심 | 커널 내 좌표 | 앵커 포인트 위치 |
-| `borderType` | enum | `BORDER_DEFAULT` | `BORDER_REPLICATE`, `BORDER_REFLECT` 등 | 경계 처리 방식 |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `kernelSize` | int | 5 | 1 ~ 31 | 커널 크기 (홀짝 무관) |
 
 #### `gaussian` / `gaussianBlur` — `cv2.GaussianBlur()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `ksize` | (int, int) | (5, 5) | (1,1) ~ (31,31) | 커널 크기 (홀수, 비대칭 가능) |
-| `sigmaX` | float | **고정 0** | 0.1 ~ 10.0 | x 방향 가우시안 표준편차 (0이면 ksize로 자동 계산) |
-| `sigmaY` | float | 0 (= sigmaX) | 0.1 ~ 10.0 | y 방향 표준편차 (0이면 sigmaX와 동일) |
-| `borderType` | enum | `BORDER_DEFAULT` | `BORDER_REPLICATE`, `BORDER_REFLECT` 등 | 경계 처리 방식 |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `kernelSize` | int | 5 | 1 ~ 31 | 커널 크기 (홀수) |
+| `sigmaX` | float | 0.0 | 0 ~ 10.0 | 가우시안 표준편차 (0이면 ksize로 자동 계산) |
 
 #### `medianBlur` — `cv2.medianBlur()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `ksize` | int | 5 | 3, 5, 7, ..., 31 | 커널 크기 (홀수만 가능) |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `kernelSize` | int | 5 | 3 ~ 31 | 커널 크기 (홀수) |
 
 #### `bilateralFilter` — `cv2.bilateralFilter()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `d` | int | 9 | 1 ~ 15 | 필터 직경 (-1이면 sigmaSpace로 자동 계산) |
-| `sigmaColor` | float | **고정 75** | 10 ~ 200 | 색상 공간 필터 시그마. 클수록 더 넓은 색상 범위를 혼합 |
-| `sigmaSpace` | float | **고정 75** | 10 ~ 200 | 좌표 공간 필터 시그마. 클수록 더 먼 픽셀이 영향 |
-| `borderType` | enum | `BORDER_DEFAULT` | `BORDER_REPLICATE`, `BORDER_REFLECT` 등 | 경계 처리 방식 |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `d` | int | 9 | 1 ~ 15 | 필터 직경 |
+| `sigmaColor` | float | 75.0 | 10 ~ 200 | 색상 공간 시그마 |
+| `sigmaSpace` | float | 75.0 | 10 ~ 200 | 좌표 공간 시그마 |
+
+#### `boxFilter` — `cv2.boxFilter()`
+
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `kernelSize` | int | 5 | 1 ~ 31 | 커널 크기 |
 
 ---
 
 ### Contour Detection
 
-#### `findContour` — `cv2.threshold()` + `cv2.findContours()` + `cv2.drawContours()`
+#### `findContour` / `convexHull` / `boundingBox`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `threshold` | int | **고정 127** | 0 ~ 255 | 이진화 임계값 |
-| `maxval` | int | **고정 255** | 1 ~ 255 | 이진화 최대값 |
-| `mode` | enum | **고정 `RETR_EXTERNAL`** | `RETR_LIST`, `RETR_TREE`, `RETR_CCOMP` | 윤곽선 검색 모드 |
-| `method` | enum | **고정 `CHAIN_APPROX_SIMPLE`** | `CHAIN_APPROX_NONE`, `CHAIN_APPROX_TC89_L1` | 윤곽선 근사 방법 |
-| `color` | (B,G,R) | **고정 (0,255,0)** | 임의 색상 | 윤곽선 색상 |
-| `thickness` | int | **고정 2** | 1 ~ 10, -1(채우기) | 윤곽선 두께 |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `thresholdValue` | int | 127 | 0 ~ 255 | 이진화 임계값 |
+| `color` | [B,G,R] | [0,255,0] | 임의 | 윤곽선/도형 색상 |
+| `thickness` | int | 2 | 1 ~ 10 | 선 두께 |
 
 ---
 
@@ -181,18 +181,55 @@
 
 #### `plus` / `minus` — `cv2.convertScaleAbs()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `alpha` | float | **고정 1.0** | 0.0 ~ 3.0 | 대비(contrast) 계수. `result = alpha * pixel + beta` |
-| `beta` | float | **고정 ±40** | -255 ~ 255 | 밝기(brightness) 오프셋 |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `alpha` | float | 1.0 | 0.0 ~ 3.0 | 대비(contrast) 계수 |
+| `beta` | float | 40.0 | 0 ~ 255 | 밝기 오프셋 (minus는 자동 음수 처리) |
+
+#### `gamma` — `cv2.LUT()`
+
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `gamma` | float | 1.0 | 0.1 ~ 5.0 | 감마값. <1 밝게, >1 어둡게 |
+
+#### `histogramEqualization` — `cv2.equalizeHist()`
+
+파라미터 없음.
 
 ---
 
 ### Thresholding
 
-#### `binary` / `inverse` / `tozero` / `tozeroInverse` — `cv2.threshold()`
+#### `binary` / `inverse` / `tozero` / `tozeroInverse` / `truncate` — `cv2.threshold()`
 
-| 파라미터 | 타입 | 현재 값 | 실험 범위 | 설명 |
-|----------|------|---------|-----------|------|
-| `thresh` | int | **고정 127** | 0 ~ 255 | 임계값 |
-| `maxval` | int | **고정 255** | 1 ~ 255 | 임계값 초과 시 할당할 값 (binary/inverse에서 사용) |
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `thresholdValue` | int | 127 | 0 ~ 255 | 임계값 |
+| `maxValue` | int | 255 | 1 ~ 255 | 할당 최대값 |
+
+#### `otsu` — `cv2.threshold(THRESH_OTSU)`
+
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `maxValue` | int | 255 | 1 ~ 255 | 할당 최대값 (임계값은 자동 결정) |
+
+#### `adaptive` — `cv2.adaptiveThreshold()`
+
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `maxValue` | int | 255 | 1 ~ 255 | 할당 최대값 |
+| `adaptiveMethod` | str | "gaussian" | "gaussian", "mean" | 적응형 방법 |
+| `blockSize` | int | 11 | 3 이상 홀수 | 로컬 영역 크기 |
+| `c` | float | 2.0 | -10 ~ 10 | 평균에서 빼는 상수 |
+
+---
+
+### Morphological
+
+#### `erosion` / `dilation` / `opening` / `closing`
+
+| 파라미터 | 타입 | 기본값 | 범위 | 설명 |
+|----------|------|--------|------|------|
+| `kernelSize` | int | 5 | 1 ~ 31 | 구조 요소 크기 (홀수) |
+| `kernelShape` | str | "rect" | "rect", "ellipse", "cross" | 구조 요소 형태 |
+| `iterations` | int | 1 | 1 ~ 10 | 반복 횟수 |

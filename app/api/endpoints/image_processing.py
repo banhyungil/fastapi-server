@@ -1,20 +1,22 @@
 # 외부 패키지는 패키지명으로 import
 from io import BytesIO
+import json
 import logging
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import uuid4
 from uuid import UUID
 from datetime import datetime
-import time 
+import time
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import ValidationError
 
 # 절대 import
 from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, PrcType
 from app.services.file_service import insert_file, list_files
-from app.services.image_processing_service import process_image
+from app.services.image_processing_service import process_image, PARAM_MODELS
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -44,13 +46,58 @@ async def get_saved_images(
         next_cursor_id=page["next_cursor_id"],
     )
 
+
+@router.get("/image-processing/params/{prc_type}", tags=["img-processing"])
+async def get_filter_params(
+    prc_type: PrcType,
+) -> dict[str, Any]:
+    """필터별 파라미터 스키마 조회. parameters JSON 작성 시 참고."""
+    param_cls = PARAM_MODELS.get(prc_type)
+    if param_cls is None:
+        raise HTTPException(status_code=400, detail=f"unsupported prcType: {prc_type}")
+    schema = param_cls.model_json_schema(by_alias=True)
+    return {"prcType": prc_type, "schema": schema}
+
+
+@router.get("/image-processing/params", tags=["img-processing"])
+async def get_all_filter_params() -> dict[str, Any]:
+    """전체 필터 파라미터 스키마 목록 조회."""
+    return {
+        prc_type: PARAM_MODELS[prc_type].model_json_schema(by_alias=True)
+        for prc_type in PARAM_MODELS
+    }
+
+
 @router.post("/image-processing", tags=["img-processing"])
 async def img_processing(
     file: Annotated[UploadFile, File(description="처리할 원본 이미지 파일")],
     prc_type: Annotated[PrcType, Form(alias="prcType", description="적용할 이미지 처리 종류")],
-    kernel_size: Annotated[int | None, Form(alias="kernelSize", description="커널 크기 (홀수). None이면 처리 종류별 기본값 사용")] = None,
+    parameters: Annotated[str | None, Form(
+        description="필터별 파라미터 JSON 문자열. GET /image-processing/params/{prcType}에서 스키마 확인 가능",
+        json_schema_extra={"description": "필터별 파라미터 JSON 문자열. GET /image-processing/params/{prcType}에서 스키마 확인 가능"},
+        openapi_examples={
+            "bilateral": {"summary": "bilateralFilter", "value": '{"d": 9, "sigmaColor": 100, "sigmaSpace": 50}'},
+            "canny": {"summary": "canny", "value": '{"threshold1": 50, "threshold2": 150, "apertureSize": 5}'},
+            "morphology": {"summary": "erosion/dilation/opening/closing", "value": '{"kernelSize": 5, "kernelShape": "ellipse", "iterations": 2}'},
+            "threshold": {"summary": "binary/inverse/tozero/...", "value": '{"thresholdValue": 100, "maxValue": 255}'},
+            "brightness": {"summary": "plus/minus", "value": '{"alpha": 1.2, "beta": 50}'},
+        },
+    )] = None,
+    kernel_size: Annotated[int | None, Form(alias="kernelSize", description="(deprecated) kernelSize만 전달 시 하위 호환")] = None,
 ) -> StreamingResponse:
     """이미지 처리"""
+
+    # parameters JSON 파싱
+    params_dict: dict[str, Any] | None = None
+    if parameters is not None:
+        try:
+            params_dict = json.loads(parameters)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail=f"invalid parameters JSON: {exc}") from exc
+
+    # 하위 호환: kernelSize만 보낸 경우
+    if params_dict is None and kernel_size is not None:
+        params_dict = {"kernelSize": kernel_size}
 
     uploaded_file_bytes = await file.read()
 
@@ -59,19 +106,21 @@ async def img_processing(
         processed_image_bytes = process_image(
             prc_type=prc_type,
             image_bytes=uploaded_file_bytes,
-            kernel_size=kernel_size,
+            parameters=params_dict,
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.errors()) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return StreamingResponse(
-        BytesIO(processed_image_bytes), 
+        BytesIO(processed_image_bytes),
         media_type="image/png",
-        headers={"X-Process-Time-Ms": f"{elapsed_ms:.2f}"}
-        )
+        headers={"X-Process-Time-Ms": f"{elapsed_ms:.2f}"},
+    )
 
 
 @router.post("/image-processing/save", tags=["img-processing"], response_model=FileSaveResponse)

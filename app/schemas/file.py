@@ -20,11 +20,18 @@ class CamelModel(BaseModel):
 
 
 PrcType = Literal[
-    "sobel", "prewitt", "laplacian",
-    "gaussian", "blur", "gaussianBlur", "medianBlur", "bilateralFilter",
-    "findContour",
-    "plus", "minus",
-    "binary", "inverse", "tozero", "tozeroInverse",
+    # Edge Detection
+    "sobel", "prewitt", "laplacian", "canny", "roberts",
+    # Blurring
+    "gaussian", "blur", "gaussianBlur", "medianBlur", "bilateralFilter", "boxFilter",
+    # Contour Detection
+    "findContour", "convexHull", "boundingBox",
+    # Brightness
+    "plus", "minus", "gamma", "histogramEqualization",
+    # Thresholding
+    "binary", "inverse", "tozero", "tozeroInverse", "truncate", "otsu", "adaptive",
+    # Morphological
+    "erosion", "dilation", "opening", "closing",
 ]
 
 
