@@ -16,7 +16,7 @@ from pydantic import ValidationError
 # 절대 import
 from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, PrcType
 from app.services.file_service import insert_file, list_files
-from app.services.image_processing_service import process_image, PARAM_MODELS
+from app.services.image_processing_service import process_image, process_image_batch, PARAM_MODELS
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -170,4 +170,49 @@ async def img_processing_save(
         size_bytes=len(data),
         uploaded_at=inserted["uploaded_at"],
         options=FileSaveOptions(prc_type=prc_type),
+    )
+
+
+@router.post("/image-processing/batch", tags=["img-processing"])
+async def img_processing_batch(
+    file: Annotated[UploadFile, File(description="처리할 원본 이미지 파일")],
+    steps: Annotated[str, Form(
+        description='처리 단계 JSON 배열. 예: [{"prcType":"gaussianBlur","parameters":{"kernelSize":5}},{"prcType":"canny"}]',
+    )],
+) -> StreamingResponse:
+    """노드리스트 기반 배치 이미지 처리. steps 순서대로 연쇄 적용한다."""
+
+    try:
+        steps_list: list[dict[str, Any]] = json.loads(steps)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid steps JSON: {exc}") from exc
+
+    if not isinstance(steps_list, list) or len(steps_list) == 0:
+        raise HTTPException(status_code=400, detail="steps must be a non-empty array")
+
+    uploaded_file_bytes = await file.read()
+
+    try:
+        result = process_image_batch(
+            image_bytes=uploaded_file_bytes,
+            steps=steps_list,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.errors()) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    step_times = ",".join(
+        f"{s.prc_type}:{s.execution_ms}" for s in result.steps
+    )
+
+    return StreamingResponse(
+        BytesIO(result.image_bytes),
+        media_type="image/png",
+        headers={
+            "X-Total-Process-Time-Ms": f"{result.total_execution_ms:.2f}",
+            "X-Step-Times": step_times,
+        },
     )

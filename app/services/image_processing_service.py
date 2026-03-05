@@ -190,6 +190,8 @@ PARAM_MODELS: dict[PrcType, type[BaseModel]] = {
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
 def _to_gray(image: np.ndarray) -> np.ndarray:
+    if image.ndim == 2 or (image.ndim == 3 and image.shape[2] == 1):
+        return image if image.ndim == 2 else image[:, :, 0]
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
@@ -466,3 +468,68 @@ def process_image(
         raise RuntimeError("failed to encode processed image")
 
     return encoded.tobytes()
+
+
+class StepResult:
+    __slots__ = ("prc_type", "execution_ms")
+
+    def __init__(self, prc_type: str, execution_ms: float) -> None:
+        self.prc_type = prc_type
+        self.execution_ms = execution_ms
+
+
+class BatchResult:
+    __slots__ = ("image_bytes", "steps", "total_execution_ms")
+
+    def __init__(self, image_bytes: bytes, steps: list[StepResult], total_execution_ms: float) -> None:
+        self.image_bytes = image_bytes
+        self.steps = steps
+        self.total_execution_ms = total_execution_ms
+
+
+def process_image_batch(
+    image_bytes: bytes,
+    steps: list[dict[str, Any]],
+) -> BatchResult:
+    """노드리스트 순서대로 이미지를 연쇄 처리한다."""
+    import time
+
+    if not image_bytes:
+        raise ValueError("empty image payload")
+
+    image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+    image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("invalid image payload")
+
+    step_results: list[StepResult] = []
+    total_start = time.perf_counter()
+
+    for step in steps:
+        prc_type: PrcType = step["prcType"]
+        parameters: dict[str, Any] = step.get("parameters", {})
+
+        op = OPERATIONS.get(prc_type)
+        if op is None:
+            raise ValueError(f"unsupported prcType: {prc_type}")
+
+        param_cls = PARAM_MODELS[prc_type]
+        params = param_cls.model_validate(parameters)
+
+        step_start = time.perf_counter()
+        image = op(image, params)
+        step_ms = (time.perf_counter() - step_start) * 1000
+
+        step_results.append(StepResult(prc_type=prc_type, execution_ms=round(step_ms, 2)))
+
+    total_ms = (time.perf_counter() - total_start) * 1000
+
+    success, encoded = cv2.imencode(".png", image)
+    if not success:
+        raise RuntimeError("failed to encode processed image")
+
+    return BatchResult(
+        image_bytes=encoded.tobytes(),
+        steps=step_results,
+        total_execution_ms=round(total_ms, 2),
+    )
