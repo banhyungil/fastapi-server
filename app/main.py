@@ -37,7 +37,16 @@ def read_root() -> dict[str, str]:
 
 app.include_router(api_router, prefix=settings.api_prefix)
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# StaticFiles는 독립 ASGI 앱이라 CORSMiddleware를 타지 않으므로
+# sub-application이 아닌 APIRouter로 정적파일을 서빙하거나,
+# mount 전에 별도 CORS 래퍼를 적용한다.
+_uploads_app = CORSMiddleware(
+    StaticFiles(directory="uploads"),
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.mount("/uploads", _uploads_app, name="uploads")
 
 
 def custom_openapi():
