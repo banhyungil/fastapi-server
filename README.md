@@ -8,7 +8,6 @@
 app/
   api/
     endpoints/
-      health.py
     router.py
   core/
     config.py
@@ -52,7 +51,6 @@ fastapi dev
 ## 엔드포인트
 
 - `GET /` : 루트 확인
-- `GET /api/health` : 헬스체크
 - `GET /docs` : Swagger UI
 
 ## 팀 표준(venv)
