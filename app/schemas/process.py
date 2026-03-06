@@ -45,6 +45,7 @@ class ProcessResponse(CamelModel):
     id: str = Field(..., description="프로세스 ID")
     nm: str = Field(..., description="프로세스 명칭")
     file_id: str = Field(..., description="원본 파일 ID")
+    file_path: str | None = Field(None, description="원본 파일 경로 (t_file.path)")
     final_file_id: str | None = Field(None, description="최종 결과 파일 ID")
     is_latest: bool = Field(..., description="최신 편집본 여부")
     total_execution_ms: int | None = Field(None, description="전체 연산 소요 시간 (ms)")

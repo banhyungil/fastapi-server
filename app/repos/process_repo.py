@@ -25,7 +25,9 @@ def insert_process(
                 """
                 INSERT INTO t_image_process (nm, file_id)
                 VALUES (%s, %s::uuid)
-                RETURNING id::text, nm, file_id::text, final_file_id::text,
+                RETURNING id::text, nm, file_id::text,
+                          (SELECT path FROM t_file WHERE id = file_id) AS file_path,
+                          final_file_id::text,
                           is_latest, total_execution_ms, created_at, updated_at
                 """,
                 (nm, file_id),
@@ -102,11 +104,12 @@ def _row_to_dict(row: tuple[Any, ...], steps: list[dict[str, Any]]) -> dict[str,
         "id": row[0],
         "nm": row[1],
         "file_id": row[2],
-        "final_file_id": row[3],
-        "is_latest": row[4],
-        "total_execution_ms": row[5],
-        "created_at": row[6],
-        "updated_at": row[7],
+        "file_path": row[3],
+        "final_file_id": row[4],
+        "is_latest": row[5],
+        "total_execution_ms": row[6],
+        "created_at": row[7],
+        "updated_at": row[8],
         "steps": steps,
     }
 
@@ -130,15 +133,17 @@ def get_process_list(*, file_id: str | None = None) -> list[dict[str, Any]]:
     with psycopg.connect(settings.database_url) as conn:
         with conn.cursor() as cur:
             query = """
-                SELECT id::text, nm, file_id::text, final_file_id::text,
-                       is_latest, total_execution_ms, created_at, updated_at
-                FROM t_image_process
+                SELECT p.id::text, p.nm, p.file_id::text, f.path AS file_path,
+                       p.final_file_id::text,
+                       p.is_latest, p.total_execution_ms, p.created_at, p.updated_at
+                FROM t_image_process p
+                LEFT JOIN t_file f ON f.id = p.file_id
             """
             params: list[Any] = []
             if file_id is not None:
-                query += " WHERE file_id = %s::uuid"
+                query += " WHERE p.file_id = %s::uuid"
                 params.append(file_id)
-            query += " ORDER BY created_at DESC"
+            query += " ORDER BY p.created_at DESC"
 
             cur.execute(query, params)
             processes = cur.fetchall()
@@ -156,10 +161,12 @@ def get_process_by_id(process_id: str) -> dict[str, Any] | None:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id::text, nm, file_id::text, final_file_id::text,
-                       is_latest, total_execution_ms, created_at, updated_at
-                FROM t_image_process
-                WHERE id = %s::uuid
+                SELECT p.id::text, p.nm, p.file_id::text, f.path AS file_path,
+                       p.final_file_id::text,
+                       p.is_latest, p.total_execution_ms, p.created_at, p.updated_at
+                FROM t_image_process p
+                LEFT JOIN t_file f ON f.id = p.file_id
+                WHERE p.id = %s::uuid
                 """,
                 (process_id,),
             )
