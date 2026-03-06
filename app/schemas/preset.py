@@ -13,7 +13,8 @@ class PresetStepBase(CamelModel):
 
 
 class PresetStepCreate(PresetStepBase):
-    parent_id: str | None = Field(None, description="부모 노드 ID (NULL이면 루트)")
+    client_id: str | None = Field(None, description="클라이언트 측 임시 노드 ID (부모 참조용)")
+    parent_client_id: str | None = Field(None, description="부모 노드의 client_id (NULL이면 루트)")
 
 
 class PresetStepResponse(PresetStepBase):

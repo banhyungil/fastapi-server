@@ -53,9 +53,15 @@ def _insert_steps(
     preset_id: str,
     steps: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """트리 구조 노드 삽입. parent_id가 None이면 루트 노드."""
+    """트리 구조 노드 삽입. client_id/parent_client_id 기반으로 부모를 매핑한다."""
     result: list[dict[str, Any]] = []
+    # client_id → 실제 DB step id 매핑
+    client_to_db: dict[str, str] = {}
+
     for step in steps:
+        parent_client_id = step.get("parent_client_id")
+        db_parent_id = client_to_db.get(parent_client_id) if parent_client_id else None
+
         cur.execute(
             """
             INSERT INTO t_preset_step (preset_id, parent_id, step_order, algorithm_nm, parameters)
@@ -64,7 +70,7 @@ def _insert_steps(
             """,
             (
                 preset_id,
-                step.get("parent_id"),
+                db_parent_id,
                 step.get("step_order", 0),
                 step["algorithm_nm"],
                 Jsonb(step.get("parameters", {})),
@@ -72,8 +78,12 @@ def _insert_steps(
         )
         r = cur.fetchone()
         if r:
+            db_id = r[0]
+            client_id = step.get("client_id")
+            if client_id:
+                client_to_db[client_id] = db_id
             result.append({
-                "id": r[0],
+                "id": db_id,
                 "parent_id": r[1],
                 "step_order": r[2],
                 "algorithm_nm": r[3],
