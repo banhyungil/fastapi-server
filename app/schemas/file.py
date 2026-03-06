@@ -67,6 +67,16 @@ class TFile(CamelModel):
     options: FileSaveOptions = Field(..., description="처리 시 적용된 옵션")
 
 
+class FileUploadResponse(CamelModel):
+    id: str = Field(..., description="파일 고유 식별자 (UUID)")
+    origin_nm: str = Field(..., description="업로드 원본 파일명")
+    nm: str = Field(..., description="서버 저장 파일명 (UUID 기반)")
+    path: str = Field(..., description="서버 내 파일 경로 (uploads/ 기준)")
+    mime_type: str = Field(..., description="파일 MIME 타입 (image/png, image/jpeg)")
+    size_bytes: int = Field(..., ge=0, description="파일 크기 (bytes)")
+    uploaded_at: datetime = Field(..., description="업로드 완료 시각 (UTC)")
+
+
 class TreeNodeResultResponse(CamelModel):
     node_id: str = Field(..., description="노드 고유 식별자")
     thumbnail: str = Field(..., description="처리 결과 썸네일 (base64 PNG)")

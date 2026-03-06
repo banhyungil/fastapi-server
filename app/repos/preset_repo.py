@@ -1,6 +1,7 @@
 from typing import Any
 
 import psycopg
+from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
@@ -185,20 +186,20 @@ def update_preset(
             if cur.fetchone() is None:
                 return None
 
-            updates: list[str] = ["updated_at = now()"]
+            updates: list[sql.SQL] = [sql.SQL("updated_at = now()")]
             params: list[Any] = []
             if nm is not None:
-                updates.append("nm = %s")
+                updates.append(sql.SQL("nm = %s"))
                 params.append(nm)
             if description is not None:
-                updates.append("description = %s")
+                updates.append(sql.SQL("description = %s"))
                 params.append(description)
 
             params.append(preset_id)
-            cur.execute(
-                f"UPDATE t_preset SET {', '.join(updates)} WHERE id = %s::uuid",
-                params,
+            query = sql.SQL("UPDATE t_preset SET {} WHERE id = %s::uuid").format(
+                sql.SQL(", ").join(updates),
             )
+            cur.execute(query, params)
 
             if steps is not None:
                 cur.execute("DELETE FROM t_preset_step WHERE preset_id = %s::uuid", (preset_id,))

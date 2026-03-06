@@ -1,6 +1,7 @@
 from typing import Any
 
 import psycopg
+from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
@@ -45,8 +46,14 @@ def _insert_steps(
     process_id: str,
     steps: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """트리 구조 노드 삽입. client_id/parent_client_id 기반으로 부모를 매핑한다."""
     result: list[dict[str, Any]] = []
+    client_to_db: dict[str, str] = {}
+
     for step in steps:
+        parent_client_id = step.get("parent_client_id")
+        db_parent_id = client_to_db.get(parent_client_id) if parent_client_id else None
+
         cur.execute(
             """
             INSERT INTO t_process_step
@@ -57,7 +64,7 @@ def _insert_steps(
             """,
             (
                 process_id,
-                step.get("parent_id"),
+                db_parent_id,
                 step.get("preset_id"),
                 step["step_order"],
                 step["algorithm_nm"],
@@ -67,6 +74,10 @@ def _insert_steps(
         )
         r = cur.fetchone()
         if r:
+            db_id = r[0]
+            client_id = step.get("client_id")
+            if client_id:
+                client_to_db[client_id] = db_id
             result.append(_step_row_to_dict(r))
     return result
 
@@ -177,26 +188,26 @@ def update_process(
             if cur.fetchone() is None:
                 return None
 
-            updates: list[str] = ["updated_at = now()"]
+            updates: list[sql.SQL] = [sql.SQL("updated_at = now()")]
             params: list[Any] = []
             if nm is not None:
-                updates.append("nm = %s")
+                updates.append(sql.SQL("nm = %s"))
                 params.append(nm)
             if final_file_id is not None:
-                updates.append("final_file_id = %s::uuid")
+                updates.append(sql.SQL("final_file_id = %s::uuid"))
                 params.append(final_file_id)
             if is_latest is not None:
-                updates.append("is_latest = %s")
+                updates.append(sql.SQL("is_latest = %s"))
                 params.append(is_latest)
             if total_execution_ms is not None:
-                updates.append("total_execution_ms = %s")
+                updates.append(sql.SQL("total_execution_ms = %s"))
                 params.append(total_execution_ms)
 
             params.append(process_id)
-            cur.execute(
-                f"UPDATE t_image_process SET {', '.join(updates)} WHERE id = %s::uuid",
-                params,
+            query = sql.SQL("UPDATE t_image_process SET {} WHERE id = %s::uuid").format(
+                sql.SQL(", ").join(updates),
             )
+            cur.execute(query, params)
 
             if steps is not None:
                 cur.execute("DELETE FROM t_process_step WHERE process_id = %s::uuid", (process_id,))

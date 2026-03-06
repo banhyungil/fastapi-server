@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 # 절대 import
-from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, PrcType, TreeBatchResponse, TreeNodeResultResponse
+from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, PrcType, TreeBatchResponse, TreeNodeResultResponse
 from app.services.file_service import insert_file, list_files
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree
@@ -171,6 +171,58 @@ async def img_processing_save(
         size_bytes=len(data),
         uploaded_at=inserted["uploaded_at"],
         options=FileSaveOptions(prc_type=prc_type),
+    )
+
+
+@router.post("/image-processing/upload", tags=["img-processing"], response_model=FileUploadResponse)
+async def img_upload(
+    file: Annotated[UploadFile, File(description="업로드할 원본 이미지 파일")],
+) -> FileUploadResponse:
+    """원본 이미지 파일 업로드"""
+
+    data = await file.read()
+    if file.content_type not in ("image/png", "image/jpeg", "image/webp"):
+        raise HTTPException(400, "unsupported content type")
+
+    ext = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/webp": ".webp",
+    }[file.content_type]
+
+    base = Path("uploads") / datetime.now().strftime("%Y-%m-%d")
+    base.mkdir(parents=True, exist_ok=True)
+
+    saved_name = f"{uuid4().hex}{ext}"
+    saved = base / saved_name
+    saved.write_bytes(data)
+
+    origin_nm = file.filename or saved_name
+    saved_path = str(saved).replace("\\", "/")
+
+    try:
+        inserted = insert_file(
+            origin_nm=origin_nm,
+            nm=saved_name,
+            path=saved_path,
+            mime_type=file.content_type,
+            size_bytes=len(data),
+            options={},
+        )
+    except Exception as exc:
+        logger.exception("failed to persist file metadata")
+        if saved.exists():
+            saved.unlink()
+        raise HTTPException(status_code=500, detail="failed to persist file metadata") from exc
+
+    return FileUploadResponse(
+        id=inserted["id"],
+        origin_nm=origin_nm,
+        nm=saved_name,
+        path=saved_path,
+        mime_type=file.content_type,
+        size_bytes=len(data),
+        uploaded_at=inserted["uploaded_at"],
     )
 
 
