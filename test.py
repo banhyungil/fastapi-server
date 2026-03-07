@@ -19,6 +19,18 @@ for key, value in dict1.items():
     print(key, value)
 
 
+# dictionary
+print('-----------')
+obj1 = {"a": 1, "b": 'b'}
+obj2 = {"c": False}
+
+## dictionary unpacking & merge
+obj3 = {**obj1, **obj2}
+
+for key, val in obj3.items():
+    print(key, val)
+print('-----------')
+
 
 for key in dict1:
     print(key)
@@ -45,3 +57,10 @@ print(type(1))
 print(type(True))
 print(type(None))
 print(type("1"))
+
+print('-----------')
+def testTuple():
+    return [1, 2]
+
+a, b =testTuple()
+print(a, b)

@@ -273,10 +273,11 @@ async def img_processing_batch(
 
 @router.post("/image-processing/batch-tree", tags=["img-processing"], response_model=TreeBatchResponse)
 async def img_processing_batch_tree(
-    file: Annotated[UploadFile, File(description="입력 이미지 (전체 실행=원본, 부분 실행=부모 노드 결과)")],
+    file: Annotated[UploadFile, File(description="연산처리를 위한 입력 이미지")],
     steps: Annotated[str, Form(
         description='트리 형태 처리 단계 JSON 배열. 예: [{"nodeId":"n1","prcType":"gaussianBlur","parameters":{},"parentId":null}]',
     )],
+    full_size: Annotated[bool, Form(alias="fullSize", description="true이면 썸네일 대신 원본 해상도 base64 반환")] = False,
 ) -> TreeBatchResponse:
     """트리 구조 배치 이미지 처리.
 
@@ -305,6 +306,7 @@ async def img_processing_batch_tree(
         result = process_image_batch_tree(
             image_bytes=uploaded_file_bytes,
             steps=steps_list,
+            full_size=full_size,
         )
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.errors()) from exc

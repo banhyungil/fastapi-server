@@ -417,6 +417,17 @@ def _make_thumbnail_base64(image: np.ndarray, max_size: int = THUMBNAIL_SIZE) ->
     return base64.b64encode(encoded.tobytes()).decode("ascii")
 
 
+def _make_full_base64(image: np.ndarray) -> str:
+    """numpy 이미지를 원본 해상도 base64 PNG 문자열로 변환한다."""
+    import base64
+
+    success, encoded = cv2.imencode(".png", image)
+    if not success:
+        raise RuntimeError("failed to encode image")
+
+    return base64.b64encode(encoded.tobytes()).decode("ascii")
+
+
 # ── 트리 배치 처리 ───────────────────────────────────────────────────────────
 
 class TreeNodeResult:
@@ -439,6 +450,8 @@ class TreeBatchResult:
 def process_image_batch_tree(
     image_bytes: bytes,
     steps: list[dict[str, Any]],
+    *,
+    full_size: bool = False,
 ) -> TreeBatchResult:
     """트리 구조의 steps를 DFS로 순회하며 이미지를 처리한다.
 
@@ -497,7 +510,7 @@ def process_image_batch_tree(
 
         node_images[node_id] = result_image
 
-        thumbnail = _make_thumbnail_base64(result_image)
+        thumbnail = _make_full_base64(result_image) if full_size else _make_thumbnail_base64(result_image)
         node_results.append(TreeNodeResult(
             node_id=node_id,
             thumbnail=thumbnail,
