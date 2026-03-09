@@ -2,6 +2,13 @@
 
 초기 아키텍처가 적용된 FastAPI 프로젝트입니다.
 
+## 시스템 요구사항
+### libvips 설치
+- https://github.com/libvips/build-win64-mxe/releases/tag/v8.18.0
+- vips-dev-w64-web-8.18.0.zip 설치
+- 압축해제 후 환경변수 등록
+
+
 ## 구조
 
 ```text
