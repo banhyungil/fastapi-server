@@ -182,7 +182,7 @@ async def img_upload(
     """원본 이미지 파일 업로드 (동일 파일 중복 방지: content hash 기반)"""
 
     data = await file.read()
-    if file.content_type not in ("image/png", "image/jpeg", "image/webp"):
+    if file.content_type not in ("image/png", "image/jpeg", "image/webp", "image/bmp", "image/tiff"):
         raise HTTPException(400, "unsupported content type")
 
     # 콘텐츠 해시 계산 → 기존 동일 파일이 있으면 즉시 반환
@@ -203,6 +203,8 @@ async def img_upload(
         "image/png": ".png",
         "image/jpeg": ".jpg",
         "image/webp": ".webp",
+        "image/bmp": ".bmp",
+        "image/tiff": ".tif",
     }[file.content_type]
 
     base = Path("uploads") / datetime.now().strftime("%Y-%m-%d")

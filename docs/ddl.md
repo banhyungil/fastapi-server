@@ -4,9 +4,9 @@
 
 -- DROP TABLE public.t_file;
 
-CREATE TABLE public.t_file ( id uuid DEFAULT gen_random_uuid() NOT NULL , origin_nm text NOT NULL , nm text NOT NULL , "path" text NOT NULL , mime_type text NOT NULL , size_bytes int8 NOT NULL , uploaded_at timestamptz DEFAULT now() NOT NULL , uploader_id uuid NULL , "options" jsonb DEFAULT '{}'::jsonb NOT NULL , content_hash text NULL , CONSTRAINT t_file_mime_type_check CHECK ((mime_type = ANY (ARRAY['image/png'::text, 'image/jpeg'::text, 'image/webp'::text]))), CONSTRAINT t_file_pkey PRIMARY KEY (id), CONSTRAINT t_file_size_bytes_check CHECK ((size_bytes > 0)));
+CREATE TABLE public.t_file ( id uuid DEFAULT gen_random_uuid() NOT NULL , origin_nm text NOT NULL , nm text NOT NULL , "path" text NOT NULL , mime_type text NOT NULL , size_bytes int8 NOT NULL , uploaded_at timestamptz DEFAULT now() NOT NULL , uploader_id uuid NULL , "options" jsonb DEFAULT '{}'::jsonb NOT NULL , content_hash text NULL, CONSTRAINT t_file_mime_type_check CHECK ((mime_type = ANY (ARRAY['image/png'::text, 'image/jpeg'::text, 'image/webp'::text, 'image/bmp'::text, 'image/tiff'::text]))), CONSTRAINT t_file_pkey PRIMARY KEY (id), CONSTRAINT t_file_size_bytes_check CHECK ((size_bytes > 0)));
 CREATE INDEX ix_t_file_uploaded_at ON public.t_file USING btree (uploaded_at DESC);
-CREATE UNIQUE INDEX uq_t_file_content_hash ON public.t_file USING btree (content_hash) WHERE content_hash IS NOT NULL;
+CREATE UNIQUE INDEX uq_t_file_content_hash ON public.t_file USING btree (content_hash) WHERE (content_hash IS NOT NULL);
 COMMENT ON TABLE public.t_file IS '물리 파일 정보: 시스템에 업로드된 원본 및 결과물 파일의 메타데이터를 저장함';
 
 -- Column comments
@@ -20,8 +20,6 @@ COMMENT ON COLUMN public.t_file.size_bytes IS '파일 크기 (바이트 단위)'
 COMMENT ON COLUMN public.t_file.uploaded_at IS '파일 업로드 일시';
 COMMENT ON COLUMN public.t_file.uploader_id IS '파일을 업로드한 사용자 ID (선택 사항)';
 COMMENT ON COLUMN public.t_file."options" IS '파일 관련 추가 메타데이터 (JSONB 형식)';
-COMMENT ON COLUMN public.t_file.content_hash IS '파일 콘텐츠 SHA-256 해시 (중복 업로드 방지용)';
-
 
 -- public.t_preset definition
 
