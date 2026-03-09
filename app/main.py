@@ -1,20 +1,43 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
 
-
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
-from app.services.image_processing_service import PARAM_MODELS
+from app.services.image_processing_service import PARAM_MODELS, cleanup_cache
 
 setup_logging()
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # startup
+    cleanup_cache()
+    logger.info("cache cleanup completed on startup")
+
+    async def _periodic_cleanup() -> None:
+        while True:
+            await asyncio.sleep(5 * 60)
+            cleanup_cache()
+
+    task = asyncio.create_task(_periodic_cleanup())
+    yield
+    # shutdown
+    task.cancel()
+
 
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -28,6 +51,7 @@ app.add_middleware(
 )
 
 register_exception_handlers(app)
+
 
 
 @app.get("/", tags=["root"])

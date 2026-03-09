@@ -14,6 +14,7 @@ class FileRowInput(TypedDict):
     mime_type: str
     size_bytes: int
     options: dict[str, Any]
+    content_hash: NotRequired[str | None]
     uploader_id: NotRequired[UUID | None]
 
 
@@ -40,28 +41,56 @@ class FileRowPage(TypedDict):
     next_cursor_id: str | None
 
 
-# Unpack을 이용해 키워드 파라미터에 타입 바인딩 가능
-def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
+def find_by_content_hash(content_hash: str) -> FileRow | None:
+    """동일 content_hash를 가진 기존 파일이 있으면 반환"""
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
-    """T_FILE 데이터 저장
-    """
-    
 
-    # with: context manager
-    # 기본 형태: with 객체 as 변수:
-    # 내부적으로는 객체의 __enter__() / __exit__()를 호출
-    # 사실상 try/finally를 간결하게 쓴 문법
-    # 블록 안에서 예외가 나도 __exit__()가 호출되어 정리(닫기) 수행
     with psycopg.connect(settings.database_url) as conn:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                FROM t_file WHERE content_hash = %s LIMIT 1
+                """,
+                (content_hash,),
+            )
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+    return {
+        "id": str(row[0]),
+        "origin_nm": row[1],
+        "nm": row[2],
+        "path": row[3],
+        "mime_type": row[4],
+        "size_bytes": row[5],
+        "uploaded_at": row[6],
+        "options": row[7],
+    }
+
+
+# Unpack을 이용해 키워드 파라미터에 타입 바인딩 가능
+def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
+    """T_FILE 데이터 저장"""
+    if not settings.database_url:
+        raise RuntimeError("database_url is not configured")
+
+    with psycopg.connect(settings.database_url) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options, content_hash)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, uploaded_at
                 """,
-                (kwargs["origin_nm"], kwargs["nm"], kwargs["path"], kwargs["mime_type"], kwargs["size_bytes"], kwargs.get("uploader_id"), Jsonb(kwargs["options"])),
+                (
+                    kwargs["origin_nm"], kwargs["nm"], kwargs["path"],
+                    kwargs["mime_type"], kwargs["size_bytes"],
+                    kwargs.get("uploader_id"), Jsonb(kwargs["options"]),
+                    kwargs.get("content_hash"),
+                ),
             )
             row = cursor.fetchone()
 
@@ -79,6 +108,7 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
 def get_file_list(
     *,
     limit: int,
+    mime_type: str | None = None,
     cursor_uploaded_at: datetime | None = None,
     cursor_id: UUID | None = None,
 ) -> FileRowPage:
@@ -90,12 +120,23 @@ def get_file_list(
         FROM t_file
     """
     params: list[object] = []
+    conditions: list[str] = []
+
+    if mime_type is not None:
+        if mime_type.endswith("/*"):
+            # 와일드카드: "image/*" → mime_type LIKE 'image/%'
+            conditions.append("mime_type LIKE %s")
+            params.append(mime_type.replace("/*", "/%"))
+        else:
+            conditions.append("mime_type = %s")
+            params.append(mime_type)
 
     if cursor_uploaded_at is not None and cursor_id is not None:
-        query += """
-            WHERE (uploaded_at, id) < (%s, %s)
-        """
+        conditions.append("(uploaded_at, id) < (%s, %s)")
         params.extend([cursor_uploaded_at, cursor_id])
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
 
     query += """
         ORDER BY uploaded_at DESC, id DESC

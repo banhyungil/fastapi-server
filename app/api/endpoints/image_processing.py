@@ -1,4 +1,5 @@
 # 외부 패키지는 패키지명으로 import
+from hashlib import sha256
 from io import BytesIO
 import json
 import logging
@@ -15,7 +16,7 @@ from pydantic import ValidationError
 
 # 절대 import
 from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, PrcType, TreeBatchResponse, TreeNodeResultResponse
-from app.services.file_service import insert_file, list_files
+from app.services.file_service import insert_file, list_files, find_file_by_hash
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree
 
@@ -178,11 +179,25 @@ async def img_processing_save(
 async def img_upload(
     file: Annotated[UploadFile, File(description="업로드할 원본 이미지 파일")],
 ) -> FileUploadResponse:
-    """원본 이미지 파일 업로드"""
+    """원본 이미지 파일 업로드 (동일 파일 중복 방지: content hash 기반)"""
 
     data = await file.read()
     if file.content_type not in ("image/png", "image/jpeg", "image/webp"):
         raise HTTPException(400, "unsupported content type")
+
+    # 콘텐츠 해시 계산 → 기존 동일 파일이 있으면 즉시 반환
+    content_hash = sha256(data).hexdigest()
+    existing = find_file_by_hash(content_hash)
+    if existing is not None:
+        return FileUploadResponse(
+            id=existing["id"],
+            origin_nm=existing["origin_nm"],
+            nm=existing["nm"],
+            path=existing["path"],
+            mime_type=existing["mime_type"],
+            size_bytes=existing["size_bytes"],
+            uploaded_at=existing["uploaded_at"],
+        )
 
     ext = {
         "image/png": ".png",
@@ -207,6 +222,7 @@ async def img_upload(
             path=saved_path,
             mime_type=file.content_type,
             size_bytes=len(data),
+            content_hash=content_hash,
             options={},
         )
     except Exception as exc:
@@ -277,12 +293,13 @@ async def img_processing_batch_tree(
     steps: Annotated[str, Form(
         description='트리 형태 처리 단계 JSON 배열. 예: [{"nodeId":"n1","prcType":"gaussianBlur","parameters":{},"parentId":null}]',
     )],
-    full_size: Annotated[bool, Form(alias="fullSize", description="true이면 썸네일 대신 원본 해상도 base64 반환")] = False,
+    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID (캐시 키 루트)")],
+    full_size: Annotated[bool, Form(alias="fullSize", description="true이면 썸네일 대신 원본 해상도 반환")] = False,
 ) -> TreeBatchResponse:
     """트리 구조 배치 이미지 처리.
 
     parentId로 트리를 구성하며, 같은 parentId를 가진 노드들은 분기(비교) 처리된다.
-    전체 실행 시 원본 이미지를, 부분 재실행 시 부모 노드의 결과 이미지를 file로 전송한다.
+    결과 이미지는 캐시 파일로 저장하고 URL을 반환한다.
     """
 
     try:
@@ -306,6 +323,7 @@ async def img_processing_batch_tree(
         result = process_image_batch_tree(
             image_bytes=uploaded_file_bytes,
             steps=steps_list,
+            file_id=file_id,
             full_size=full_size,
         )
     except ValidationError as exc:
@@ -320,7 +338,7 @@ async def img_processing_batch_tree(
         results=[
             TreeNodeResultResponse(
                 node_id=nr.node_id,
-                thumbnail=nr.thumbnail,
+                image_url=nr.image_url,
                 execution_ms=nr.execution_ms,
             )
             for nr in result.node_results

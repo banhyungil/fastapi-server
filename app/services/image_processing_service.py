@@ -1,10 +1,17 @@
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 
 from app.schemas.file import PrcType
+
+# ── 캐시 설정 ─────────────────────────────────────────────────────────────────
+
+CACHE_DIR = Path("uploads/cache")
+CACHE_TTL_SECONDS = 60 * 60       # 1시간 (file_id 디렉토리 단위)
+CACHE_MAX_BYTES = 1024 * 1024 * 1024  # 1GB (전체 cache 폴더)
 from app.schemas.image_processing import (
     PARAM_MODELS,
     AdaptiveThresholdParams,
@@ -394,48 +401,76 @@ def process_image_batch(
     )
 
 
+# ── 캐시 유틸 ──────────────────────────────────────────────────────────────────
+
+def _save_node_image(file_id: str, node_id: str, image: np.ndarray, full_size: bool = False) -> str:
+    """노드별 결과 이미지를 파일로 저장(덮어쓰기)하고 URL 경로를 반환한다."""
+    import time as _time
+
+    dir_path = CACHE_DIR / file_id
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    if not full_size:
+        h, w = image.shape[:2]
+        scale = THUMBNAIL_SIZE / max(h, w)
+        if scale < 1.0:
+            image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+
+    file_path = dir_path / f"{node_id}.png"
+    success, encoded = cv2.imencode(".png", image)
+    if not success:
+        raise RuntimeError("failed to encode cache image")
+    file_path.write_bytes(encoded.tobytes())
+
+    # 브라우저 캐시 무효화용 타임스탬프
+    ts = int(_time.time())
+    return f"/{str(file_path).replace(chr(92), '/')}?t={ts}"
+
+
+def cleanup_cache() -> None:
+    """file_id 디렉토리 단위 TTL 삭제 + 전체 폴더 크기 제한."""
+    import shutil
+    import time as _time
+
+    if not CACHE_DIR.exists():
+        return
+
+    now = _time.time()
+    dirs = [d for d in CACHE_DIR.iterdir() if d.is_dir()]
+
+    # 1) TTL 기반 삭제 — 디렉토리 mtime이 TTL 초과하면 통째로 삭제
+    remaining: list[Path] = []
+    for d in dirs:
+        if now - d.stat().st_mtime > CACHE_TTL_SECONDS:
+            shutil.rmtree(d, ignore_errors=True)
+        else:
+            remaining.append(d)
+
+    # 2) 전체 폴더 크기 제한 (LRU — 가장 오래된 디렉토리부터 삭제)
+    def _dir_size(d: Path) -> int:
+        return sum(f.stat().st_size for f in d.rglob("*") if f.is_file())
+
+    remaining.sort(key=lambda d: d.stat().st_mtime)
+    total = sum(_dir_size(d) for d in remaining)
+    while total > CACHE_MAX_BYTES and remaining:
+        old = remaining.pop(0)
+        total -= _dir_size(old)
+        shutil.rmtree(old, ignore_errors=True)
+
+
 # ── 썸네일 생성 ──────────────────────────────────────────────────────────────
 
 THUMBNAIL_SIZE = 150
-
-def _make_thumbnail_base64(image: np.ndarray, max_size: int = THUMBNAIL_SIZE) -> str:
-    """numpy 이미지를 저해상도 base64 PNG 문자열로 변환한다."""
-    import base64
-
-    h, w = image.shape[:2]
-    scale = max_size / max(h, w)
-    if scale < 1.0:
-        new_w, new_h = int(w * scale), int(h * scale)
-        resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
-    else:
-        resized = image
-
-    success, encoded = cv2.imencode(".png", resized)
-    if not success:
-        raise RuntimeError("failed to encode thumbnail")
-
-    return base64.b64encode(encoded.tobytes()).decode("ascii")
-
-
-def _make_full_base64(image: np.ndarray) -> str:
-    """numpy 이미지를 원본 해상도 base64 PNG 문자열로 변환한다."""
-    import base64
-
-    success, encoded = cv2.imencode(".png", image)
-    if not success:
-        raise RuntimeError("failed to encode image")
-
-    return base64.b64encode(encoded.tobytes()).decode("ascii")
 
 
 # ── 트리 배치 처리 ───────────────────────────────────────────────────────────
 
 class TreeNodeResult:
-    __slots__ = ("node_id", "thumbnail", "execution_ms")
+    __slots__ = ("node_id", "image_url", "execution_ms")
 
-    def __init__(self, node_id: str, thumbnail: str, execution_ms: float) -> None:
+    def __init__(self, node_id: str, image_url: str, execution_ms: float) -> None:
         self.node_id = node_id
-        self.thumbnail = thumbnail
+        self.image_url = image_url
         self.execution_ms = execution_ms
 
 
@@ -451,6 +486,7 @@ def process_image_batch_tree(
     image_bytes: bytes,
     steps: list[dict[str, Any]],
     *,
+    file_id: str,
     full_size: bool = False,
 ) -> TreeBatchResult:
     """트리 구조의 steps를 DFS로 순회하며 이미지를 처리한다.
@@ -458,6 +494,7 @@ def process_image_batch_tree(
     각 step은 { nodeId, prcType, parameters, parentId } 형태.
     parentId가 null이면 루트 노드(입력 이미지를 직접 받음).
     같은 parentId를 가진 siblings는 동일 입력에 서로 다른 알고리즘을 적용(분기).
+    결과 이미지는 uploads/cache/{file_id}/{node_id}.png 에 덮어쓰기하고 URL을 반환한다.
     """
     import time
 
@@ -475,17 +512,14 @@ def process_image_batch_tree(
         parent_id = step.get("parentId")
         children_map.setdefault(parent_id, []).append(step)
 
-    # 노드별 결과 이미지 저장 (nodeId → numpy array)
     node_images: dict[str, np.ndarray] = {}
     node_results: list[TreeNodeResult] = []
 
     total_start = time.perf_counter()
 
-    # DFS 순회 (스택 기반)
-    # (step, parent_image) 튜플을 스택에 넣음
+    # DFS 순회 (스택 기반) — (step, parent_image)
     stack: list[tuple[dict[str, Any], np.ndarray]] = []
 
-    # 루트 노드들을 스택에 추가 (step_order 역순으로 넣어 정순 처리)
     roots = children_map.get(None, [])
     for step in reversed(roots):
         stack.append((step, root_image))
@@ -510,10 +544,12 @@ def process_image_batch_tree(
 
         node_images[node_id] = result_image
 
-        thumbnail = _make_full_base64(result_image) if full_size else _make_thumbnail_base64(result_image)
+        # 결과 이미지를 파일로 저장 (동일 node_id면 덮어쓰기)
+        image_url = _save_node_image(file_id, node_id, result_image, full_size)
+
         node_results.append(TreeNodeResult(
             node_id=node_id,
-            thumbnail=thumbnail,
+            image_url=image_url,
             execution_ms=round(step_ms, 2),
         ))
 
