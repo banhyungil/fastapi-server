@@ -12,6 +12,7 @@ from app.schemas.file import PrcType
 CACHE_DIR = Path("uploads/cache")
 CACHE_TTL_SECONDS = 60 * 60       # 1시간 (file_id 디렉토리 단위)
 CACHE_MAX_BYTES = 1024 * 1024 * 1024  # 1GB (전체 cache 폴더)
+TILE_THRESHOLD = 4000             # px — 한 변이 이 이상이면 DZI 타일 생성
 from app.schemas.image_processing import (
     PARAM_MODELS,
     AdaptiveThresholdParams,
@@ -427,6 +428,67 @@ def _save_node_image(file_id: str, node_id: str, image: np.ndarray, full_size: b
     return f"/{str(file_path).replace(chr(92), '/')}?t={ts}"
 
 
+def _ensure_libvips() -> None:
+    """Windows 환경에서 libvips DLL 검색 경로를 등록한다 (최초 1회)."""
+    import os
+    import sys
+
+    if sys.platform != "win32" or getattr(_ensure_libvips, "_done", False):
+        return
+
+    vips_bin = Path(os.environ.get("VIPS_HOME", "")) / "bin"
+    if not vips_bin.exists():
+        # winget 기본 설치 경로 탐색
+        winget_base = Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft/WinGet/Packages"
+        for d in winget_base.glob("libvips*"):
+            candidate = next(d.glob("vips-dev-*/bin"), None)
+            if candidate and candidate.exists():
+                vips_bin = candidate
+                break
+
+    if vips_bin.exists():
+        os.add_dll_directory(str(vips_bin))
+        os.environ["PATH"] = str(vips_bin) + os.pathsep + os.environ.get("PATH", "")
+
+    _ensure_libvips._done = True  # type: ignore[attr-defined]
+
+
+def _save_node_dzi(file_id: str, node_id: str, image: np.ndarray) -> str:
+    """고해상도 이미지를 DZI 타일로 변환하여 저장하고 .dzi URL을 반환한다."""
+    import time as _time
+
+    _ensure_libvips()
+    import pyvips
+
+    dir_path = CACHE_DIR / file_id
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    # OpenCV BGR → RGB 변환 후 pyvips 이미지 생성
+    if image.ndim == 2:
+        # grayscale
+        vips_img = pyvips.Image.new_from_memory(
+            image.tobytes(), image.shape[1], image.shape[0], 1, "uchar",
+        )
+    else:
+        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        vips_img = pyvips.Image.new_from_memory(
+            rgb.tobytes(), image.shape[1], image.shape[0], image.shape[2], "uchar",
+        )
+
+    dzi_base = str(dir_path / node_id)
+    # 기존 타일 디렉토리 제거 후 재생성
+    tiles_dir = Path(f"{dzi_base}_files")
+    if tiles_dir.exists():
+        import shutil
+        shutil.rmtree(tiles_dir, ignore_errors=True)
+
+    vips_img.dzsave(dzi_base, tile_size=256, overlap=1, suffix=".jpg[Q=85]")  # type: ignore[attr-defined]
+
+    ts = int(_time.time())
+    dzi_path = f"{dzi_base}.dzi"
+    return f"/{dzi_path.replace(chr(92), '/')}?t={ts}"
+
+
 def cleanup_cache() -> None:
     """file_id 디렉토리 단위 TTL 삭제 + 전체 폴더 크기 제한."""
     import shutil
@@ -466,12 +528,13 @@ THUMBNAIL_SIZE = 150
 # ── 트리 배치 처리 ───────────────────────────────────────────────────────────
 
 class TreeNodeResult:
-    __slots__ = ("node_id", "image_url", "execution_ms")
+    __slots__ = ("node_id", "image_url", "execution_ms", "dzi_url")
 
-    def __init__(self, node_id: str, image_url: str, execution_ms: float) -> None:
+    def __init__(self, node_id: str, image_url: str, execution_ms: float, dzi_url: str | None = None) -> None:
         self.node_id = node_id
         self.image_url = image_url
         self.execution_ms = execution_ms
+        self.dzi_url = dzi_url
 
 
 class TreeBatchResult:
@@ -544,13 +607,24 @@ def process_image_batch_tree(
 
         node_images[node_id] = result_image
 
-        # 결과 이미지를 파일로 저장 (동일 node_id면 덮어쓰기)
-        image_url = _save_node_image(file_id, node_id, result_image, full_size)
+        # 썸네일은 항상 저장 (노드 카드 표시용)
+        image_url = _save_node_image(file_id, node_id, result_image, full_size=False)
+
+        # full_size 요청 + 고해상도 → DZI 타일 생성
+        dzi_url: str | None = None
+        if full_size:
+            h, w = result_image.shape[:2]
+            if max(h, w) >= TILE_THRESHOLD:
+                dzi_url = _save_node_dzi(file_id, node_id, result_image)
+            else:
+                # 저해상도면 원본 크기 PNG로 저장
+                image_url = _save_node_image(file_id, node_id, result_image, full_size=True)
 
         node_results.append(TreeNodeResult(
             node_id=node_id,
             image_url=image_url,
             execution_ms=round(step_ms, 2),
+            dzi_url=dzi_url,
         ))
 
         # 자식 노드들을 스택에 추가

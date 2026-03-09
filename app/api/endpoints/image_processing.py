@@ -340,6 +340,7 @@ async def img_processing_batch_tree(
                 node_id=nr.node_id,
                 image_url=nr.image_url,
                 execution_ms=nr.execution_ms,
+                dzi_url=nr.dzi_url,
             )
             for nr in result.node_results
         ],
