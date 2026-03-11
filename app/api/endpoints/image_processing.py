@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse
 from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id
 from app.schemas.image_processing import PARAM_MODELS
-from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node
+from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -295,6 +295,7 @@ async def img_processing_batch_tree(
     steps: Annotated[str, Form(
         description='트리 형태 처리 단계 JSON 배열. 예: [{"nodeId":"n1","prcType":"gaussianBlur","parameters":{},"parentId":null}]',
     )],
+    thumbnail_size: Annotated[int | None, Form(alias="thumbnailSize", ge=50, le=800, description="썸네일 해상도 (px)")] = None,
 ) -> TreeBatchResponse:
     """트리 구조 배치 이미지 처리.
 
@@ -323,6 +324,7 @@ async def img_processing_batch_tree(
         result = process_image_batch_tree(
             image_bytes=uploaded_file_bytes,
             steps=steps_list,
+            thumbnail_size=thumbnail_size,
         )
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.errors()) from exc
@@ -381,3 +383,40 @@ async def create_dzi(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return DziResponse(dzi_url=result.dzi_url, image_url=result.image_url)
+
+
+@router.post("/image-processing/download/{file_id}", tags=["img-processing"])
+async def download_node(
+    file_id: str,
+    steps: Annotated[str, Form(
+        description='타겟 노드까지의 처리 단계 JSON 배열',
+    )],
+    node_id: Annotated[str, Form(alias="nodeId", description="다운로드할 타겟 노드 ID")],
+) -> StreamingResponse:
+    """원본 이미지에 steps 체인을 적용하고, 타겟 노드의 처리 결과를 PNG로 다운로드한다."""
+
+    file_row = find_file_by_id(file_id)
+    if file_row is None:
+        raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
+
+    try:
+        steps_list: list[dict[str, Any]] = json.loads(steps)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid steps JSON: {exc}") from exc
+
+    try:
+        image_bytes = download_node_image(
+            file_path=file_row["path"],
+            steps=steps_list,
+            node_id=node_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return StreamingResponse(
+        BytesIO(image_bytes),
+        media_type="image/png",
+        headers={"Content-Disposition": f'attachment; filename="{node_id}.png"'},
+    )

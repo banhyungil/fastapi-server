@@ -13,6 +13,7 @@ CACHE_DIR = Path("uploads/cache")
 CACHE_TTL_SECONDS = 60 * 60       # 1시간 (file_id 디렉토리 단위)
 CACHE_MAX_BYTES = 1024 * 1024 * 1024  # 1GB (전체 cache 폴더)
 TILE_THRESHOLD = 4000             # px — 한 변이 이 이상이면 DZI 타일 생성
+THUMBNAIL_SIZE = 150              # px — 썸네일 기본 해상도
 from app.schemas.image_processing import (
     PARAM_MODELS,
     AdaptiveThresholdParams,
@@ -425,12 +426,12 @@ def process_image_batch(
 
 # ── 캐시 유틸 ──────────────────────────────────────────────────────────────────
 
-def _encode_thumbnail(image: np.ndarray) -> str:
+def _encode_thumbnail(image: np.ndarray, thumbnail_size: int = THUMBNAIL_SIZE) -> str:
     """썸네일을 WebP로 인코딩하여 data URL(base64)을 반환한다."""
     import base64
 
     h, w = image.shape[:2]
-    scale = THUMBNAIL_SIZE / max(h, w)
+    scale = thumbnail_size / max(h, w)
     if scale < 1.0:
         image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
@@ -527,18 +528,12 @@ class DziResult:
         self.image_url = image_url
 
 
-def generate_dzi_for_node(
+def _process_chain_to_node(
     file_path: str,
     steps: list[dict[str, Any]],
-    *,
-    file_id: str,
     node_id: str,
-) -> DziResult:
-    """원본 이미지를 로드하고, steps 체인을 처리하여 타겟 노드의 DZI(또는 원본 이미지)를 생성한다.
-
-    고해상도(>= TILE_THRESHOLD)이면 DZI 타일 생성, 저해상도이면 원본 PNG 저장.
-    """
-    # 원본 이미지 로드 (서버 디스크에서 직접 읽기)
+) -> np.ndarray:
+    """원본 이미지를 로드하고 steps 체인을 DFS로 처리하여 타겟 노드의 결과 이미지를 반환한다."""
     image = cv2.imread(file_path, cv2.IMREAD_COLOR)
     if image is None:
         raise ValueError(f"failed to read image: {file_path}")
@@ -550,14 +545,11 @@ def generate_dzi_for_node(
         children_map.setdefault(parent_id, []).append(step)
 
     # DFS로 타겟 노드까지의 체인만 처리
-    node_images: dict[str, np.ndarray] = {}
     stack: list[tuple[dict[str, Any], np.ndarray]] = []
 
     roots = children_map.get(None, [])
     for step in reversed(roots):
         stack.append((step, image))
-
-    target_image: np.ndarray | None = None
 
     while stack:
         step, parent_image = stack.pop()
@@ -573,19 +565,30 @@ def generate_dzi_for_node(
         param_cls = PARAM_MODELS[prc_type]
         params = param_cls.model_validate(parameters)
         result_image = op(parent_image, params)
-        node_images[current_id] = result_image
 
         if current_id == node_id:
-            target_image = result_image
-            break  # 타겟 노드 도달 — 더 이상 처리 불필요
+            return result_image
 
         # 자식 노드들을 스택에 추가
         children = children_map.get(current_id, [])
         for child in reversed(children):
             stack.append((child, result_image))
 
-    if target_image is None:
-        raise ValueError(f"target node not found in steps: {node_id}")
+    raise ValueError(f"target node not found in steps: {node_id}")
+
+
+def generate_dzi_for_node(
+    file_path: str,
+    steps: list[dict[str, Any]],
+    *,
+    file_id: str,
+    node_id: str,
+) -> DziResult:
+    """원본 이미지를 로드하고, steps 체인을 처리하여 타겟 노드의 DZI(또는 원본 이미지)를 생성한다.
+
+    고해상도(>= TILE_THRESHOLD)이면 DZI 타일 생성, 저해상도이면 원본 PNG 저장.
+    """
+    target_image = _process_chain_to_node(file_path, steps, node_id)
 
     h, w = target_image.shape[:2]
     if max(h, w) >= TILE_THRESHOLD:
@@ -594,6 +597,20 @@ def generate_dzi_for_node(
     else:
         image_url = _save_node_image(file_id, node_id, target_image)
         return DziResult(image_url=image_url)
+
+
+def download_node_image(
+    file_path: str,
+    steps: list[dict[str, Any]],
+    node_id: str,
+) -> bytes:
+    """원본 이미지에 steps 체인을 적용하고, 타겟 노드의 결과를 PNG 바이트로 반환한다."""
+    target_image = _process_chain_to_node(file_path, steps, node_id)
+
+    success, encoded = cv2.imencode(".png", target_image)
+    if not success:
+        raise RuntimeError("failed to encode image")
+    return encoded.tobytes()
 
 
 def cleanup_cache() -> None:
@@ -627,11 +644,6 @@ def cleanup_cache() -> None:
         shutil.rmtree(old, ignore_errors=True)
 
 
-# ── 썸네일 생성 ──────────────────────────────────────────────────────────────
-
-THUMBNAIL_SIZE = 150
-
-
 # ── 트리 배치 처리 ───────────────────────────────────────────────────────────
 
 class TreeNodeResult:
@@ -654,6 +666,8 @@ class TreeBatchResult:
 def process_image_batch_tree(
     image_bytes: bytes,
     steps: list[dict[str, Any]],
+    *,
+    thumbnail_size: int | None = None,
 ) -> TreeBatchResult:
     """트리 구조의 steps를 DFS로 순회하며 이미지를 처리한다.
 
@@ -711,7 +725,8 @@ def process_image_batch_tree(
         node_images[node_id] = result_image
 
         # 썸네일은 base64 data URL로 반환 (디스크 I/O 없음)
-        image_url = _encode_thumbnail(result_image)
+        thumb_px = thumbnail_size or THUMBNAIL_SIZE
+        image_url = _encode_thumbnail(result_image, thumb_px)
 
         node_results.append(TreeNodeResult(
             node_id=node_id,
