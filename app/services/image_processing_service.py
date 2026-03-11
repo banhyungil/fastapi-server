@@ -268,12 +268,18 @@ def _op_closing(image: np.ndarray, params: MorphologicalParams) -> np.ndarray:
 # ── Custom ────────────────────────────────────────────────────────────────────
 
 def _op_custom(image: np.ndarray, params: CustomFilterParams) -> np.ndarray:
+    from app.core.errors import AppError, ErrorCode
     from app.repos.custom_filter_repo import get_custom_filter_by_id
     from app.services.custom_filter_service import execute_custom_filter
 
     filter_data = get_custom_filter_by_id(params.filter_id)
     if not filter_data:
-        raise ValueError(f"커스텀 필터를 찾을 수 없습니다: {params.filter_id}")
+        raise AppError(
+            code=ErrorCode.CUSTOM_FILTER_NOT_FOUND,
+            message=f"커스텀 필터를 찾을 수 없습니다: {params.filter_id}",
+            status_code=404,
+            detail={"filter_id": params.filter_id},
+        )
     return execute_custom_filter(filter_data["code"], image, params.parameters)
 
 

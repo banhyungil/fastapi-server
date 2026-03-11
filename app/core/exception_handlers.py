@@ -3,10 +3,23 @@ import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from app.core.errors import AppError
+
 logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        logger.warning(
+            "AppError [%s] on %s %s: %s",
+            exc.code.value,
+            request.method,
+            request.url.path,
+            exc.message,
+        )
+        return JSONResponse(status_code=exc.status_code, content=exc.to_dict())
+
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
         if exc.status_code >= 500:

@@ -241,29 +241,33 @@ async def test_execute_custom_filter_with_params():
 
 
 async def test_execute_custom_filter_no_result():
-    """execute_custom_filter — result 미할당 시 에러"""
+    """execute_custom_filter — result 미할당 시 AppError"""
     import numpy as np
     import pytest
+    from app.core.errors import AppError, ErrorCode
     from app.services.custom_filter_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "x = 1 + 1"
 
-    with pytest.raises(ValueError, match="result"):
+    with pytest.raises(AppError) as exc_info:
         execute_custom_filter(code, image, {})
+    assert exc_info.value.code == ErrorCode.CUSTOM_FILTER_NO_RESULT
 
 
-async def test_execute_custom_filter_import_blocked():
-    """execute_custom_filter — import 차단 확인"""
+async def test_execute_custom_filter_exec_error():
+    """execute_custom_filter — 코드 실행 오류 시 AppError"""
     import numpy as np
     import pytest
+    from app.core.errors import AppError, ErrorCode
     from app.services.custom_filter_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "import os\nresult = image"
 
-    with pytest.raises(Exception):
+    with pytest.raises(AppError) as exc_info:
         execute_custom_filter(code, image, {})
+    assert exc_info.value.code == ErrorCode.CUSTOM_FILTER_EXEC_ERROR
 
 
 async def test_execute_custom_filter_preserves_original():
@@ -280,39 +284,48 @@ async def test_execute_custom_filter_preserves_original():
 
 
 async def test_execute_custom_filter_invalid_ndim():
-    """execute_custom_filter — 1차원 배열 반환 시 에러"""
+    """execute_custom_filter — 1차원 배열 반환 시 AppError"""
     import numpy as np
     import pytest
+    from app.core.errors import AppError, ErrorCode
     from app.services.custom_filter_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "result = np.array([1, 2, 3], dtype=np.uint8)"
 
-    with pytest.raises(ValueError, match="ndim"):
+    with pytest.raises(AppError) as exc_info:
         execute_custom_filter(code, image, {})
+    assert exc_info.value.code == ErrorCode.CUSTOM_FILTER_INVALID_NDIM
+    assert exc_info.value.detail["ndim"] == 1
 
 
 async def test_execute_custom_filter_invalid_channels():
-    """execute_custom_filter — 유효하지 않은 채널 수 반환 시 에러"""
+    """execute_custom_filter — 유효하지 않은 채널 수 반환 시 AppError"""
     import numpy as np
     import pytest
+    from app.core.errors import AppError, ErrorCode
     from app.services.custom_filter_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "result = np.zeros((100, 100, 2), dtype=np.uint8)"
 
-    with pytest.raises(ValueError, match="채널"):
+    with pytest.raises(AppError) as exc_info:
         execute_custom_filter(code, image, {})
+    assert exc_info.value.code == ErrorCode.CUSTOM_FILTER_INVALID_CHANNELS
+    assert exc_info.value.detail["channels"] == 2
 
 
 async def test_execute_custom_filter_invalid_dtype():
-    """execute_custom_filter — float64 반환 시 에러"""
+    """execute_custom_filter — float64 반환 시 AppError"""
     import numpy as np
     import pytest
+    from app.core.errors import AppError, ErrorCode
     from app.services.custom_filter_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "result = np.zeros((100, 100, 3), dtype=np.float64)"
 
-    with pytest.raises(ValueError, match="uint8"):
+    with pytest.raises(AppError) as exc_info:
         execute_custom_filter(code, image, {})
+    assert exc_info.value.code == ErrorCode.CUSTOM_FILTER_INVALID_DTYPE
+    assert exc_info.value.detail["actual"] == "float64"
