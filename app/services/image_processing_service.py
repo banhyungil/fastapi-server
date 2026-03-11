@@ -425,18 +425,28 @@ def process_image_batch(
 
 # ── 캐시 유틸 ──────────────────────────────────────────────────────────────────
 
-def _save_node_image(file_id: str, node_id: str, image: np.ndarray, full_size: bool = False) -> str:
-    """노드별 결과 이미지를 파일로 저장(덮어쓰기)하고 URL 경로를 반환한다."""
+def _encode_thumbnail(image: np.ndarray) -> str:
+    """썸네일을 WebP로 인코딩하여 data URL(base64)을 반환한다."""
+    import base64
+
+    h, w = image.shape[:2]
+    scale = THUMBNAIL_SIZE / max(h, w)
+    if scale < 1.0:
+        image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+
+    success, encoded = cv2.imencode(".webp", image, [cv2.IMWRITE_WEBP_QUALITY, 80])
+    if not success:
+        raise RuntimeError("failed to encode thumbnail")
+    b64 = base64.b64encode(encoded.tobytes()).decode()
+    return f"data:image/webp;base64,{b64}"
+
+
+def _save_node_image(file_id: str, node_id: str, image: np.ndarray) -> str:
+    """노드별 원본 크기 이미지를 파일로 저장하고 URL 경로를 반환한다."""
     import time as _time
 
     dir_path = CACHE_DIR / file_id
     dir_path.mkdir(parents=True, exist_ok=True)
-
-    if not full_size:
-        h, w = image.shape[:2]
-        scale = THUMBNAIL_SIZE / max(h, w)
-        if scale < 1.0:
-            image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
     file_path = dir_path / f"{node_id}.png"
     success, encoded = cv2.imencode(".png", image)
@@ -444,7 +454,6 @@ def _save_node_image(file_id: str, node_id: str, image: np.ndarray, full_size: b
         raise RuntimeError("failed to encode cache image")
     file_path.write_bytes(encoded.tobytes())
 
-    # 브라우저 캐시 무효화용 타임스탬프
     ts = int(_time.time())
     return f"/{str(file_path).replace(chr(92), '/')}?t={ts}"
 
@@ -628,8 +637,8 @@ def process_image_batch_tree(
 
         node_images[node_id] = result_image
 
-        # 썸네일은 항상 저장 (노드 카드 표시용)
-        image_url = _save_node_image(file_id, node_id, result_image, full_size=False)
+        # 썸네일은 base64 data URL로 반환 (디스크 I/O 없음)
+        image_url = _encode_thumbnail(result_image)
 
         # full_size 요청 + 고해상도 → DZI 타일 생성
         dzi_url: str | None = None
@@ -638,8 +647,8 @@ def process_image_batch_tree(
             if max(h, w) >= TILE_THRESHOLD:
                 dzi_url = _save_node_dzi(file_id, node_id, result_image)
             else:
-                # 저해상도면 원본 크기 PNG로 저장
-                image_url = _save_node_image(file_id, node_id, result_image, full_size=True)
+                # 저해상도면 원본 크기 PNG로 디스크 저장
+                image_url = _save_node_image(file_id, node_id, result_image)
 
         node_results.append(TreeNodeResult(
             node_id=node_id,
