@@ -519,6 +519,83 @@ def _save_node_dzi(file_id: str, node_id: str, image: np.ndarray) -> str:
     return f"/{dzi_path.replace(chr(92), '/')}?t={ts}"
 
 
+class DziResult:
+    __slots__ = ("dzi_url", "image_url")
+
+    def __init__(self, *, dzi_url: str | None = None, image_url: str | None = None) -> None:
+        self.dzi_url = dzi_url
+        self.image_url = image_url
+
+
+def generate_dzi_for_node(
+    file_path: str,
+    steps: list[dict[str, Any]],
+    *,
+    file_id: str,
+    node_id: str,
+) -> DziResult:
+    """원본 이미지를 로드하고, steps 체인을 처리하여 타겟 노드의 DZI(또는 원본 이미지)를 생성한다.
+
+    고해상도(>= TILE_THRESHOLD)이면 DZI 타일 생성, 저해상도이면 원본 PNG 저장.
+    """
+    # 원본 이미지 로드 (서버 디스크에서 직접 읽기)
+    image = cv2.imread(file_path, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError(f"failed to read image: {file_path}")
+
+    # parentId → children 맵 구축
+    children_map: dict[str | None, list[dict[str, Any]]] = {}
+    for step in steps:
+        parent_id = step.get("parentId")
+        children_map.setdefault(parent_id, []).append(step)
+
+    # DFS로 타겟 노드까지의 체인만 처리
+    node_images: dict[str, np.ndarray] = {}
+    stack: list[tuple[dict[str, Any], np.ndarray]] = []
+
+    roots = children_map.get(None, [])
+    for step in reversed(roots):
+        stack.append((step, image))
+
+    target_image: np.ndarray | None = None
+
+    while stack:
+        step, parent_image = stack.pop()
+
+        current_id: str = step["nodeId"]
+        prc_type: PrcType = step["prcType"]
+        parameters: dict[str, Any] = step.get("parameters", {})
+
+        op = OPERATIONS.get(prc_type)
+        if op is None:
+            raise ValueError(f"unsupported prcType: {prc_type}")
+
+        param_cls = PARAM_MODELS[prc_type]
+        params = param_cls.model_validate(parameters)
+        result_image = op(parent_image, params)
+        node_images[current_id] = result_image
+
+        if current_id == node_id:
+            target_image = result_image
+            break  # 타겟 노드 도달 — 더 이상 처리 불필요
+
+        # 자식 노드들을 스택에 추가
+        children = children_map.get(current_id, [])
+        for child in reversed(children):
+            stack.append((child, result_image))
+
+    if target_image is None:
+        raise ValueError(f"target node not found in steps: {node_id}")
+
+    h, w = target_image.shape[:2]
+    if max(h, w) >= TILE_THRESHOLD:
+        dzi_url = _save_node_dzi(file_id, node_id, target_image)
+        return DziResult(dzi_url=dzi_url)
+    else:
+        image_url = _save_node_image(file_id, node_id, target_image)
+        return DziResult(image_url=image_url)
+
+
 def cleanup_cache() -> None:
     """file_id 디렉토리 단위 TTL 삭제 + 전체 폴더 크기 제한."""
     import shutil
@@ -558,13 +635,12 @@ THUMBNAIL_SIZE = 150
 # ── 트리 배치 처리 ───────────────────────────────────────────────────────────
 
 class TreeNodeResult:
-    __slots__ = ("node_id", "image_url", "execution_ms", "dzi_url")
+    __slots__ = ("node_id", "image_url", "execution_ms")
 
-    def __init__(self, node_id: str, image_url: str, execution_ms: float, dzi_url: str | None = None) -> None:
+    def __init__(self, node_id: str, image_url: str, execution_ms: float) -> None:
         self.node_id = node_id
         self.image_url = image_url
         self.execution_ms = execution_ms
-        self.dzi_url = dzi_url
 
 
 class TreeBatchResult:
@@ -578,16 +654,13 @@ class TreeBatchResult:
 def process_image_batch_tree(
     image_bytes: bytes,
     steps: list[dict[str, Any]],
-    *,
-    file_id: str,
-    full_size: bool = False,
 ) -> TreeBatchResult:
     """트리 구조의 steps를 DFS로 순회하며 이미지를 처리한다.
 
     각 step은 { nodeId, prcType, parameters, parentId } 형태.
     parentId가 null이면 루트 노드(입력 이미지를 직접 받음).
     같은 parentId를 가진 siblings는 동일 입력에 서로 다른 알고리즘을 적용(분기).
-    결과 이미지는 uploads/cache/{file_id}/{node_id}.png 에 덮어쓰기하고 URL을 반환한다.
+    결과는 썸네일(base64 data URL)로 반환한다 (디스크 I/O 없음).
     """
     import time
 
@@ -640,21 +713,10 @@ def process_image_batch_tree(
         # 썸네일은 base64 data URL로 반환 (디스크 I/O 없음)
         image_url = _encode_thumbnail(result_image)
 
-        # full_size 요청 + 고해상도 → DZI 타일 생성
-        dzi_url: str | None = None
-        if full_size:
-            h, w = result_image.shape[:2]
-            if max(h, w) >= TILE_THRESHOLD:
-                dzi_url = _save_node_dzi(file_id, node_id, result_image)
-            else:
-                # 저해상도면 원본 크기 PNG로 디스크 저장
-                image_url = _save_node_image(file_id, node_id, result_image)
-
         node_results.append(TreeNodeResult(
             node_id=node_id,
             image_url=image_url,
             execution_ms=round(step_ms, 2),
-            dzi_url=dzi_url,
         ))
 
         # 자식 노드들을 스택에 추가

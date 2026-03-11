@@ -15,10 +15,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 # 절대 import
-from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, PrcType, TreeBatchResponse, TreeNodeResultResponse
-from app.services.file_service import insert_file, list_files, find_file_by_hash
+from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse
+from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id
 from app.schemas.image_processing import PARAM_MODELS
-from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree
+from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -295,13 +295,11 @@ async def img_processing_batch_tree(
     steps: Annotated[str, Form(
         description='트리 형태 처리 단계 JSON 배열. 예: [{"nodeId":"n1","prcType":"gaussianBlur","parameters":{},"parentId":null}]',
     )],
-    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID (캐시 키 루트)")],
-    full_size: Annotated[bool, Form(alias="fullSize", description="true이면 썸네일 대신 원본 해상도 반환")] = False,
 ) -> TreeBatchResponse:
     """트리 구조 배치 이미지 처리.
 
     parentId로 트리를 구성하며, 같은 parentId를 가진 노드들은 분기(비교) 처리된다.
-    결과 이미지는 캐시 파일로 저장하고 URL을 반환한다.
+    결과는 썸네일(base64 data URL)로 반환한다.
     """
 
     try:
@@ -325,8 +323,6 @@ async def img_processing_batch_tree(
         result = process_image_batch_tree(
             image_bytes=uploaded_file_bytes,
             steps=steps_list,
-            file_id=file_id,
-            full_size=full_size,
         )
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.errors()) from exc
@@ -342,8 +338,46 @@ async def img_processing_batch_tree(
                 node_id=nr.node_id,
                 image_url=nr.image_url,
                 execution_ms=nr.execution_ms,
-                dzi_url=nr.dzi_url,
             )
             for nr in result.node_results
         ],
     )
+
+
+@router.post(
+    "/image-processing/dzi/{file_id}",
+    tags=["img-processing"],
+    response_model=DziResponse,
+)
+async def create_dzi(
+    file_id: str,
+    steps: Annotated[str, Form(
+        description='타겟 노드까지의 처리 단계 JSON 배열',
+    )],
+    node_id: Annotated[str, Form(alias="nodeId", description="DZI를 생성할 타겟 노드 ID")],
+) -> DziResponse:
+    """원본 이미지에 steps 체인을 적용하고, 타겟 노드의 DZI 타일(또는 원본 이미지)을 생성한다."""
+
+    # 파일 경로 조회
+    file_row = find_file_by_id(file_id)
+    if file_row is None:
+        raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
+
+    try:
+        steps_list: list[dict[str, Any]] = json.loads(steps)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid steps JSON: {exc}") from exc
+
+    try:
+        result = generate_dzi_for_node(
+            file_path=file_row["path"],
+            steps=steps_list,
+            file_id=file_id,
+            node_id=node_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return DziResponse(dzi_url=result.dzi_url, image_url=result.image_url)

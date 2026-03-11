@@ -41,6 +41,36 @@ class FileRowPage(TypedDict):
     next_cursor_id: str | None
 
 
+def find_by_id(file_id: str) -> FileRow | None:
+    """파일 ID로 파일 메타데이터를 조회한다."""
+    if not settings.database_url:
+        raise RuntimeError("database_url is not configured")
+
+    with psycopg.connect(settings.database_url) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                FROM t_file WHERE id = %s::uuid LIMIT 1
+                """,
+                (file_id,),
+            )
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+    return {
+        "id": str(row[0]),
+        "origin_nm": row[1],
+        "nm": row[2],
+        "path": row[3],
+        "mime_type": row[4],
+        "size_bytes": row[5],
+        "uploaded_at": row[6],
+        "options": row[7],
+    }
+
+
 def find_by_content_hash(content_hash: str) -> FileRow | None:
     """동일 content_hash를 가진 기존 파일이 있으면 반환"""
     if not settings.database_url:

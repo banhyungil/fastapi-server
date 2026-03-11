@@ -81,9 +81,13 @@ class FileUploadResponse(CamelModel):
 
 class TreeNodeResultResponse(CamelModel):
     node_id: str = Field(..., description="노드 고유 식별자")
-    image_url: str = Field(..., description="처리 결과 이미지 URL (썸네일)")
+    image_url: str = Field(..., description="처리 결과 이미지 URL (썸네일 base64 data URL)")
     execution_ms: float = Field(..., description="해당 노드 처리 시간 (ms)")
-    dzi_url: str | None = Field(None, description="DZI 타일 URL (고해상도 이미지일 때만 존재)")
+
+
+class DziResponse(CamelModel):
+    dzi_url: str | None = Field(None, description="DZI 타일 URL (고해상도일 때)")
+    image_url: str | None = Field(None, description="원본 이미지 URL (저해상도일 때)")
 
 
 class TreeBatchResponse(CamelModel):
