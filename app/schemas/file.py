@@ -32,6 +32,8 @@ PrcType = Literal[
     "binary", "inverse", "tozero", "tozeroInverse", "truncate", "otsu", "adaptive",
     # Morphological
     "erosion", "dilation", "opening", "closing",
+    # Custom
+    "custom",
 ]
 
 

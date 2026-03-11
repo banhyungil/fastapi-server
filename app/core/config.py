@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     debug: bool = True
     api_prefix: str = "/api"
     database_url: str = "postgresql://postgres:test1!@localhost:5434/postgres"
-    log_level: str = 'DEBUG'
+    log_level: str = 'INFO'
 
     model_config = SettingsConfigDict(
         env_file=f".env{ENV}",

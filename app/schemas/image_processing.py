@@ -110,6 +110,13 @@ class MorphologicalParams(BaseModel):
     iterations: int = Field(default=1, ge=1, description="연산 반복 횟수")
 
 
+class CustomFilterParams(BaseModel):
+    """커스텀 필터 파라미터."""
+    model_config = ConfigDict(populate_by_name=True)
+    filter_id: str = Field(..., alias="filterId", description="커스텀 필터 ID (UUID)")
+    parameters: dict[str, Any] = Field(default_factory=dict, description="사용자 정의 파라미터")
+
+
 # ── 유니온 타입 & JSON 스키마 ──────────────────────────────────────────────────
 
 AnyFilterParams = Union[
@@ -119,6 +126,7 @@ AnyFilterParams = Union[
     BrightnessParams, GammaParams,
     ThresholdParams, AdaptiveThresholdParams,
     MorphologicalParams,
+    CustomFilterParams,
     NoParams,
 ]
 
@@ -164,4 +172,6 @@ PARAM_MODELS: dict[PrcType, type[BaseModel]] = {
     "dilation": MorphologicalParams,
     "opening": MorphologicalParams,
     "closing": MorphologicalParams,
+    # Custom
+    "custom": CustomFilterParams,
 }

@@ -117,3 +117,23 @@ ALTER TABLE public.t_preset_step ADD CONSTRAINT fk_preset_parent FOREIGN KEY (pa
 ALTER TABLE public.t_process_step ADD CONSTRAINT fk_step_parent FOREIGN KEY (parent_id) REFERENCES public.t_process_step(id) ON DELETE CASCADE;
 ALTER TABLE public.t_process_step ADD CONSTRAINT fk_step_preset FOREIGN KEY (preset_id) REFERENCES public.t_preset(id) ON DELETE SET NULL;
 ALTER TABLE public.t_process_step ADD CONSTRAINT fk_step_process FOREIGN KEY (process_id) REFERENCES public.t_image_process(id) ON DELETE CASCADE;
+
+-- public.t_custom_filter definition
+
+-- Drop table
+
+-- DROP TABLE public.t_custom_filter;
+
+CREATE TABLE public.t_custom_filter ( id uuid DEFAULT gen_random_uuid() NOT NULL , nm varchar(100) NOT NULL , description text DEFAULT ''::text NULL , code text NOT NULL , params jsonb DEFAULT '{}'::jsonb NULL , "version" int4 DEFAULT 1 NULL , created_at timestamptz DEFAULT now() NULL , updated_at timestamptz DEFAULT now() NULL , CONSTRAINT t_custom_filter_pkey PRIMARY KEY (id));
+COMMENT ON TABLE public.t_custom_filter IS '사용자 정의 이미지 프로세싱 필터/알고리즘 관리 테이블';
+
+-- Column comments
+
+COMMENT ON COLUMN public.t_custom_filter.id IS '필터 고유 식별자 (UUID)';
+COMMENT ON COLUMN public.t_custom_filter.nm IS '필터 이름 (사용자 노출용)';
+COMMENT ON COLUMN public.t_custom_filter.description IS '필터 상세 설명';
+COMMENT ON COLUMN public.t_custom_filter.code IS '필터 파이썬 코드';
+COMMENT ON COLUMN public.t_custom_filter.params IS '필터 실행에 필요한 파라미터 정의 (JSON 형식)';
+COMMENT ON COLUMN public.t_custom_filter."version" IS '필터 버전 관리 번호';
+COMMENT ON COLUMN public.t_custom_filter.created_at IS '데이터 생성 일시';
+COMMENT ON COLUMN public.t_custom_filter.updated_at IS '데이터 최종 수정 일시';

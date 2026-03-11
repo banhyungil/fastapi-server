@@ -21,6 +21,7 @@ from app.schemas.image_processing import (
     BrightnessParams,
     CannyParams,
     ContourParams,
+    CustomFilterParams,
     GammaParams,
     GaussianBlurParams,
     KernelParams,
@@ -264,6 +265,18 @@ def _op_closing(image: np.ndarray, params: MorphologicalParams) -> np.ndarray:
     return cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=params.iterations)
 
 
+# ── Custom ────────────────────────────────────────────────────────────────────
+
+def _op_custom(image: np.ndarray, params: CustomFilterParams) -> np.ndarray:
+    from app.repos.custom_filter_repo import get_custom_filter_by_id
+    from app.services.custom_filter_service import execute_custom_filter
+
+    filter_data = get_custom_filter_by_id(params.filter_id)
+    if not filter_data:
+        raise ValueError(f"커스텀 필터를 찾을 수 없습니다: {params.filter_id}")
+    return execute_custom_filter(filter_data["code"], image, params.parameters)
+
+
 # ── OPERATIONS 매핑 ───────────────────────────────────────────────────────────
 
 ImageOperation = Callable[..., np.ndarray]
@@ -304,6 +317,8 @@ OPERATIONS: dict[PrcType, ImageOperation] = {
     "dilation": _op_dilation,
     "opening": _op_opening,
     "closing": _op_closing,
+    # Custom
+    "custom": _op_custom,
 }
 
 
