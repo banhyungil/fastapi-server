@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse
 from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id
 from app.schemas.image_processing import PARAM_MODELS
-from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image
+from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image, generate_thumbnail_base64
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -40,12 +40,56 @@ async def get_saved_images(
         cursor_id=cursor_id,
     )
 
+    items: list[TFile] = []
+    for item in page["items"]:
+        t_file = TFile.model_validate(item)
+        t_file.thumbnail_url = generate_thumbnail_base64(item["path"])
+        items.append(t_file)
+
     return FileListResponse(
-        # model_validate 사용 시 중첩 dict구조도 변환한다
-        items=[TFile.model_validate(item) for item in page["items"]],
+        items=items,
         has_more=page["has_more"],
         next_cursor_uploaded_at=page["next_cursor_uploaded_at"],
         next_cursor_id=page["next_cursor_id"],
+    )
+
+
+@router.get("/image-processing/thumbnail/{file_id}", tags=["img-processing"])
+async def get_thumbnail(
+    file_id: str,
+    size: Annotated[int, Query(ge=32, le=400, description="썸네일 최대 변 크기 (px)")] = 200,
+) -> StreamingResponse:
+    """파일 ID에 해당하는 이미지를 지정 크기로 축소하여 반환한다."""
+    import cv2
+    import numpy as np
+
+    file_row = find_file_by_id(file_id)
+    if file_row is None:
+        raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
+
+    file_path = Path(file_row["path"])
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="file not found on disk")
+
+    data = file_path.read_bytes()
+    arr = np.frombuffer(data, dtype=np.uint8)
+    image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=500, detail="failed to decode image")
+
+    h, w = image.shape[:2]
+    if max(h, w) > size:
+        scale = size / max(h, w)
+        image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+
+    success, encoded = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    if not success:
+        raise HTTPException(status_code=500, detail="failed to encode thumbnail")
+
+    return StreamingResponse(
+        BytesIO(encoded.tobytes()),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
     )
 
 

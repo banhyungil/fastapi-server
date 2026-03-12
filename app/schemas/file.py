@@ -44,7 +44,7 @@ class ImgProcessingForm(BaseModel):
 
 class FileSaveOptions(CamelModel):
     model_config = ConfigDict(extra="allow")  # 정의되지 않은 추가 키 허용
-    prc_type: PrcType = Field(..., description="저장 시 적용된 이미지 처리 종류")
+    prc_type: PrcType | None = Field(None, description="저장 시 적용된 이미지 처리 종류")
 
 
 class FileSaveResponse(CamelModel):
@@ -67,6 +67,7 @@ class TFile(CamelModel):
     size_bytes: int = Field(..., ge=0, description="파일 크기 (bytes)")
     uploaded_at: datetime = Field(..., description="업로드 완료 시각 (UTC)")
     options: FileSaveOptions = Field(..., description="처리 시 적용된 옵션")
+    thumbnail_url: str | None = Field(None, description="썸네일 base64 data URL")
 
 
 class FileUploadResponse(CamelModel):

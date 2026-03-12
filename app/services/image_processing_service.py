@@ -426,6 +426,19 @@ def process_image_batch(
 
 # ── 캐시 유틸 ──────────────────────────────────────────────────────────────────
 
+def generate_thumbnail_base64(file_path: str, size: int = 200) -> str | None:
+    """파일 경로로부터 썸네일 base64 data URL을 생성한다."""
+    path = Path(file_path)
+    if not path.exists():
+        return None
+    data = path.read_bytes()
+    arr = np.frombuffer(data, dtype=np.uint8)
+    image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if image is None:
+        return None
+    return _encode_thumbnail(image, thumbnail_size=size)
+
+
 def _encode_thumbnail(image: np.ndarray, thumbnail_size: int = THUMBNAIL_SIZE) -> str:
     """썸네일을 WebP로 인코딩하여 data URL(base64)을 반환한다."""
     import base64
