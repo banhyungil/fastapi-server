@@ -135,10 +135,75 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
     }
 
 
+def delete_by_id(file_id: str) -> FileRow | None:
+    """파일 메타데이터를 삭제하고 삭제된 행을 반환한다."""
+    if not settings.database_url:
+        raise RuntimeError("database_url is not configured")
+
+    with psycopg.connect(settings.database_url) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM t_file WHERE id = %s::uuid
+                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                """,
+                (file_id,),
+            )
+            row = cursor.fetchone()
+        conn.commit()
+
+    if row is None:
+        return None
+    return {
+        "id": str(row[0]),
+        "origin_nm": row[1],
+        "nm": row[2],
+        "path": row[3],
+        "mime_type": row[4],
+        "size_bytes": row[5],
+        "uploaded_at": row[6],
+        "options": row[7],
+    }
+
+
+def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
+    """파일의 origin_nm(원본 파일명)을 수정한다."""
+    if not settings.database_url:
+        raise RuntimeError("database_url is not configured")
+
+    with psycopg.connect(settings.database_url) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE t_file SET origin_nm = %s WHERE id = %s::uuid
+                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                """,
+                (origin_nm, file_id),
+            )
+            row = cursor.fetchone()
+        conn.commit()
+
+    if row is None:
+        return None
+    return {
+        "id": str(row[0]),
+        "origin_nm": row[1],
+        "nm": row[2],
+        "path": row[3],
+        "mime_type": row[4],
+        "size_bytes": row[5],
+        "uploaded_at": row[6],
+        "options": row[7],
+    }
+
+
 def get_file_list(
     *,
     limit: int,
     mime_type: str | None = None,
+    search: str | None = None,
+    min_size: int | None = None,
+    max_size: int | None = None,
     cursor_uploaded_at: datetime | None = None,
     cursor_id: UUID | None = None,
 ) -> FileRowPage:
@@ -154,12 +219,23 @@ def get_file_list(
 
     if mime_type is not None:
         if mime_type.endswith("/*"):
-            # 와일드카드: "image/*" → mime_type LIKE 'image/%'
             conditions.append("mime_type LIKE %s")
             params.append(mime_type.replace("/*", "/%"))
         else:
             conditions.append("mime_type = %s")
             params.append(mime_type)
+
+    if search is not None:
+        conditions.append("origin_nm ILIKE %s")
+        params.append(f"%{search}%")
+
+    if min_size is not None:
+        conditions.append("size_bytes >= %s")
+        params.append(min_size)
+
+    if max_size is not None:
+        conditions.append("size_bytes <= %s")
+        params.append(max_size)
 
     if cursor_uploaded_at is not None and cursor_id is not None:
         conditions.append("(uploaded_at, id) < (%s, %s)")

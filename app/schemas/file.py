@@ -119,3 +119,7 @@ class FileItemListResponse(CamelModel):
     has_more: bool = Field(..., description="다음 페이지 존재 여부")
     next_cursor_uploaded_at: datetime | None = Field(None, description="다음 커서 기준 업로드 시각")
     next_cursor_id: str | None = Field(None, description="다음 커서 파일 ID")
+
+
+class FileRenameRequest(CamelModel):
+    origin_nm: str = Field(..., min_length=1, max_length=255, description="변경할 파일명")

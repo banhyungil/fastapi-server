@@ -15,8 +15,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 # 절대 import
-from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse
-from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id
+from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, FileRenameRequest, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse
+from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id, delete_file, rename_file
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image, generate_thumbnail_base64
 
@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 @router.get("/image-processing", tags=["img-processing"], response_model=FileListResponse)
 async def get_saved_images(
     limit: Annotated[int, Query(ge=1, le=100, description="반환할 최대 항목 수")] = 20,
+    search: Annotated[str | None, Query(description="파일명 검색 (부분 일치)")] = None,
+    min_size: Annotated[int | None, Query(alias="minSize", ge=0, description="최소 파일 크기 (bytes)")] = None,
+    max_size: Annotated[int | None, Query(alias="maxSize", ge=0, description="최대 파일 크기 (bytes)")] = None,
     cursor_uploaded_at: Annotated[datetime | None, Query(alias="cursorUploadedAt", description="커서 기준 업로드 시각 (cursorId와 함께 제공)")] = None,
     cursor_id: Annotated[UUID | None, Query(alias="cursorId", description="커서 기준 파일 ID (cursorUploadedAt와 함께 제공)")] = None,
 ) -> FileListResponse:
@@ -36,6 +39,9 @@ async def get_saved_images(
 
     page = list_files(
         limit=limit,
+        search=search,
+        min_size=min_size,
+        max_size=max_size,
         cursor_uploaded_at=cursor_uploaded_at,
         cursor_id=cursor_id,
     )
@@ -52,6 +58,26 @@ async def get_saved_images(
         next_cursor_uploaded_at=page["next_cursor_uploaded_at"],
         next_cursor_id=page["next_cursor_id"],
     )
+
+
+@router.delete("/image-processing/{file_id}", tags=["img-processing"])
+async def delete_image(file_id: str) -> dict[str, str]:
+    """이미지 파일 삭제 (DB 메타데이터 + 디스크 파일)"""
+    try:
+        delete_file(file_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"detail": "deleted"}
+
+
+@router.patch("/image-processing/{file_id}", tags=["img-processing"], response_model=TFile)
+async def rename_image(file_id: str, body: FileRenameRequest) -> TFile:
+    """이미지 파일명(originNm) 수정"""
+    try:
+        updated = rename_file(file_id, body.origin_nm)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return TFile.model_validate(updated)
 
 
 @router.get("/image-processing/thumbnail/{file_id}", tags=["img-processing"])
