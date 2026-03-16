@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import TypedDict, NotRequired, Any, Unpack
 from uuid import UUID
 
+from typing import cast, LiteralString
+
 import psycopg
 from psycopg.types.json import Jsonb
 
@@ -252,7 +254,7 @@ def get_file_list(
 
     with psycopg.connect(settings.database_url) as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query, params)
+            cursor.execute(cast(LiteralString ,query), params)
             rows = cursor.fetchall()
 
     has_more = len(rows) > limit
