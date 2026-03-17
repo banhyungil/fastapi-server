@@ -137,3 +137,4 @@ COMMENT ON COLUMN public.t_custom_filter.params IS '필터 실행에 필요한 �
 COMMENT ON COLUMN public.t_custom_filter."version" IS '필터 버전 관리 번호';
 COMMENT ON COLUMN public.t_custom_filter.created_at IS '데이터 생성 일시';
 COMMENT ON COLUMN public.t_custom_filter.updated_at IS '데이터 최종 수정 일시';
+

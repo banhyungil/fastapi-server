@@ -56,6 +56,8 @@ class FileSaveResponse(CamelModel):
     size_bytes: int = Field(..., ge=0, description="파일 크기 (bytes)")
     uploaded_at: datetime = Field(..., description="업로드 완료 시각 (UTC)")
     options: FileSaveOptions = Field(..., description="처리 시 적용된 옵션")
+    width: int | None = Field(None, description="이미지 가로 해상도 (px)")
+    height: int | None = Field(None, description="이미지 세로 해상도 (px)")
 
 
 class TFile(CamelModel):
@@ -68,6 +70,8 @@ class TFile(CamelModel):
     uploaded_at: datetime = Field(..., description="업로드 완료 시각 (UTC)")
     options: FileSaveOptions = Field(..., description="처리 시 적용된 옵션")
     thumbnail_url: str | None = Field(None, description="썸네일 base64 data URL")
+    width: int | None = Field(None, description="이미지 가로 해상도 (px)")
+    height: int | None = Field(None, description="이미지 세로 해상도 (px)")
 
 
 class FileUploadResponse(CamelModel):
@@ -78,6 +82,8 @@ class FileUploadResponse(CamelModel):
     mime_type: str = Field(..., description="파일 MIME 타입 (image/png, image/jpeg)")
     size_bytes: int = Field(..., ge=0, description="파일 크기 (bytes)")
     uploaded_at: datetime = Field(..., description="업로드 완료 시각 (UTC)")
+    width: int | None = Field(None, description="이미지 가로 해상도 (px)")
+    height: int | None = Field(None, description="이미지 세로 해상도 (px)")
 
 
 class TreeNodeResultResponse(CamelModel):
@@ -105,6 +111,8 @@ class FileItem(CamelModel):
     size_bytes: int = Field(..., ge=0, description="파일 크기 (bytes)")
     uploaded_at: datetime = Field(..., description="업로드 완료 시각 (UTC)")
     options: dict = Field(default_factory=dict, description="파일 관련 추가 메타데이터")
+    width: int | None = Field(None, description="이미지 가로 해상도 (px)")
+    height: int | None = Field(None, description="이미지 세로 해상도 (px)")
 
 
 class FileListResponse(CamelModel):

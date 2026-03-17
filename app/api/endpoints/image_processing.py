@@ -10,6 +10,9 @@ from uuid import UUID
 from datetime import datetime
 import time
 
+import cv2
+import numpy as np
+
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
@@ -22,6 +25,16 @@ from app.services.image_processing_service import process_image, process_image_b
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _get_image_dimensions(data: bytes) -> tuple[int, int]:
+    """이미지 바이트에서 (width, height)를 추출한다."""
+    arr = np.frombuffer(data, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise ValueError("failed to decode image for dimension extraction")
+    h, w = img.shape[:2]
+    return w, h
 
 @router.get("/image-processing", tags=["img-processing"], response_model=FileListResponse)
 async def get_saved_images(
@@ -216,6 +229,9 @@ async def img_processing_save(
     origin_nm = blob.filename or saved_name
     saved_path = str(saved).replace("\\", "/")
 
+    #### 해상도 추출 ####
+    width, height = _get_image_dimensions(data)
+
     #### DB 저장 ####
     try:
         inserted = insert_file(
@@ -225,6 +241,8 @@ async def img_processing_save(
             mime_type=blob.content_type,
             size_bytes=len(data),
             options={"prcType": prc_type, "prcMs": prc_ms},
+            width=width,
+            height=height,
         )
     except Exception as exc:
         logger.exception("failed to persist file metadata")
@@ -248,6 +266,8 @@ async def img_processing_save(
         size_bytes=len(data),
         uploaded_at=inserted["uploaded_at"],
         options=FileSaveOptions(prc_type=prc_type),
+        width=width,
+        height=height,
     )
 
 
@@ -273,6 +293,8 @@ async def img_upload(
             mime_type=existing["mime_type"],
             size_bytes=existing["size_bytes"],
             uploaded_at=existing["uploaded_at"],
+            width=existing["width"],
+            height=existing["height"],
         )
 
     ext = {
@@ -293,6 +315,9 @@ async def img_upload(
     origin_nm = file.filename or saved_name
     saved_path = str(saved).replace("\\", "/")
 
+    #### 해상도 추출 ####
+    width, height = _get_image_dimensions(data)
+
     try:
         inserted = insert_file(
             origin_nm=origin_nm,
@@ -302,6 +327,8 @@ async def img_upload(
             size_bytes=len(data),
             content_hash=content_hash,
             options={},
+            width=width,
+            height=height,
         )
     except Exception as exc:
         logger.exception("failed to persist file metadata")
@@ -323,6 +350,8 @@ async def img_upload(
         mime_type=file.content_type,
         size_bytes=len(data),
         uploaded_at=inserted["uploaded_at"],
+        width=width,
+        height=height,
     )
 
 

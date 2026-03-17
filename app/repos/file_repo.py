@@ -18,6 +18,8 @@ class FileRowInput(TypedDict):
     options: dict[str, Any]
     content_hash: NotRequired[str | None]
     uploader_id: NotRequired[UUID | None]
+    width: NotRequired[int | None]
+    height: NotRequired[int | None]
 
 
 class InsertedFileMeta(TypedDict):
@@ -34,6 +36,8 @@ class FileRow(TypedDict):
     size_bytes: int
     uploaded_at: datetime
     options: dict[str, Any]
+    width: int | None
+    height: int | None
 
 
 class FileRowPage(TypedDict):
@@ -52,7 +56,7 @@ def find_by_id(file_id: str) -> FileRow | None:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
                 FROM t_file WHERE id = %s::uuid LIMIT 1
                 """,
                 (file_id,),
@@ -70,6 +74,8 @@ def find_by_id(file_id: str) -> FileRow | None:
         "size_bytes": row[5],
         "uploaded_at": row[6],
         "options": row[7],
+        "width": row[8],
+        "height": row[9],
     }
 
 
@@ -82,7 +88,7 @@ def find_by_content_hash(content_hash: str) -> FileRow | None:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
                 FROM t_file WHERE content_hash = %s LIMIT 1
                 """,
                 (content_hash,),
@@ -100,6 +106,8 @@ def find_by_content_hash(content_hash: str) -> FileRow | None:
         "size_bytes": row[5],
         "uploaded_at": row[6],
         "options": row[7],
+        "width": row[8],
+        "height": row[9],
     }
 
 
@@ -113,8 +121,8 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options, content_hash)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options, content_hash, width, height)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, uploaded_at
                 """,
                 (
@@ -122,6 +130,7 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
                     kwargs["mime_type"], kwargs["size_bytes"],
                     kwargs.get("uploader_id"), Jsonb(kwargs["options"]),
                     kwargs.get("content_hash"),
+                    kwargs.get("width"), kwargs.get("height"),
                 ),
             )
             row = cursor.fetchone()
@@ -165,6 +174,8 @@ def delete_by_id(file_id: str) -> FileRow | None:
         "size_bytes": row[5],
         "uploaded_at": row[6],
         "options": row[7],
+        "width": row[8],
+        "height": row[9],
     }
 
 
@@ -196,6 +207,8 @@ def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
         "size_bytes": row[5],
         "uploaded_at": row[6],
         "options": row[7],
+        "width": row[8],
+        "height": row[9],
     }
 
 
@@ -213,7 +226,7 @@ def get_file_list(
         raise RuntimeError("database_url is not configured")
 
     query = """
-        SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+        SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
         FROM t_file
     """
     params: list[object] = []
