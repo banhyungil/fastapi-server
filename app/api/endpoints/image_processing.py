@@ -402,7 +402,7 @@ async def img_processing_batch(
 
 @router.post("/image-processing/batch-tree", tags=["img-processing"], response_model=TreeBatchResponse)
 async def img_processing_batch_tree(
-    file: Annotated[UploadFile, File(description="연산처리를 위한 입력 이미지")],
+    file_id: Annotated[str, Form(alias="fileId", description="처리할 원본 이미지 파일 ID")],
     steps: Annotated[str, Form(
         description='트리 형태 처리 단계 JSON 배열. 예: [{"nodeId":"n1","prcType":"gaussianBlur","parameters":{},"parentId":null}]',
     )],
@@ -413,6 +413,14 @@ async def img_processing_batch_tree(
     parentId로 트리를 구성하며, 같은 parentId를 가진 노드들은 분기(비교) 처리된다.
     결과는 썸네일(base64 data URL)로 반환한다.
     """
+
+    file_row = find_file_by_id(file_id)
+    if file_row is None:
+        raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
+
+    file_path = Path(file_row["path"])
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="file not found on disk")
 
     try:
         steps_list: list[dict[str, Any]] = json.loads(steps)
@@ -429,11 +437,11 @@ async def img_processing_batch_tree(
         if "prcType" not in step:
             raise HTTPException(status_code=400, detail=f"steps[{i}] missing required field: prcType")
 
-    uploaded_file_bytes = await file.read()
+    image_bytes = file_path.read_bytes()
 
     try:
         result = process_image_batch_tree(
-            image_bytes=uploaded_file_bytes,
+            image_bytes=image_bytes,
             steps=steps_list,
             thumbnail_size=thumbnail_size,
         )
