@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, FileRenameRequest, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse
 from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id, delete_file, rename_file
 from app.schemas.image_processing import PARAM_MODELS
-from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image, generate_thumbnail_base64
+from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image, save_file_thumbnail, get_file_thumbnail_url
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ async def get_saved_images(
     items: list[TFile] = []
     for item in page["items"]:
         t_file = TFile.model_validate(item)
-        t_file.thumbnail_url = generate_thumbnail_base64(item["path"])
+        t_file.thumbnail_url = get_file_thumbnail_url(str(item["id"]))
         items.append(t_file)
 
     return FileListResponse(
@@ -232,6 +232,12 @@ async def img_processing_save(
             saved.unlink()
         raise HTTPException(status_code=500, detail="failed to persist file metadata") from exc
 
+    # 썸네일 미리 생성
+    try:
+        save_file_thumbnail(str(inserted["id"]), data)
+    except Exception:
+        logger.warning("failed to generate thumbnail for %s", inserted["id"])
+
     #### 응답 ####
     return FileSaveResponse(
         id=inserted["id"],
@@ -302,6 +308,12 @@ async def img_upload(
         if saved.exists():
             saved.unlink()
         raise HTTPException(status_code=500, detail="failed to persist file metadata") from exc
+
+    # 썸네일 미리 생성
+    try:
+        save_file_thumbnail(str(inserted["id"]), data)
+    except Exception:
+        logger.warning("failed to generate thumbnail for %s", inserted["id"])
 
     return FileUploadResponse(
         id=inserted["id"],

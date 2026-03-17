@@ -5,6 +5,7 @@ from uuid import UUID
 from pathlib import Path
 
 from app.repos.file_repo import FileRow, FileRowInput, FileRowPage, InsertedFileMeta, insert_file_row, get_file_list, find_by_content_hash, find_by_id, delete_by_id, update_origin_nm
+from app.services.image_processing_service import delete_file_thumbnail
 
 
 def insert_file(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
@@ -49,6 +50,8 @@ def delete_file(file_id: str) -> FileRow:
     disk_path = Path(deleted["path"])
     if disk_path.exists():
         disk_path.unlink()
+
+    delete_file_thumbnail(str(deleted["id"]))
 
     return deleted
 

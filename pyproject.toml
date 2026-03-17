@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-asyncio_mode = "auto"
+asyncio_mode = "auto"   # @pytest.mark.asyncio 데코레이터 자동 추가
 
 [tool.ruff]
 line-length = 120

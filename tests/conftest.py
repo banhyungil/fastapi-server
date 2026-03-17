@@ -5,6 +5,9 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 
+# conftest.py 기능
+# # 같은 디렉터리 하위 파일에서 정의된 fixture 사용가능
+# # test 함수 인자명을 통해 매칭됨.
 
 @pytest.fixture
 async def client():

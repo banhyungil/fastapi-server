@@ -10,10 +10,12 @@ from app.schemas.file import PrcType
 # ── 캐시 설정 ─────────────────────────────────────────────────────────────────
 
 CACHE_DIR = Path("uploads/cache")
+THUMBNAIL_DIR = Path("uploads/thumbnails")
 CACHE_TTL_SECONDS = 60 * 60       # 1시간 (file_id 디렉토리 단위)
 CACHE_MAX_BYTES = 1024 * 1024 * 1024  # 1GB (전체 cache 폴더)
 TILE_THRESHOLD = 4000             # px — 한 변이 이 이상이면 DZI 타일 생성
-THUMBNAIL_SIZE = 150              # px — 썸네일 기본 해상도
+THUMBNAIL_SIZE = 250              # px — 썸네일 기본 해상도
+THUMBNAIL_SIZE_FILE = 150
 from app.schemas.image_processing import (
     PARAM_MODELS,
     AdaptiveThresholdParams,
@@ -380,7 +382,7 @@ def process_image_batch(
     image_bytes: bytes,
     steps: list[dict[str, Any]],
 ) -> BatchResult:
-    """노드리스트 순서대로 이미지를 연쇄 처리한다."""
+    """연산 stpes에 따른 이미지 처리."""
     import time
 
     if not image_bytes:
@@ -436,10 +438,50 @@ def generate_thumbnail_base64(file_path: str, size: int = 200) -> str | None:
     image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if image is None:
         return None
-    return _encode_thumbnail(image, thumbnail_size=size)
+    return _encode_64_thumbnail(image, thumbnail_size=size)
 
 
-def _encode_thumbnail(image: np.ndarray, thumbnail_size: int = THUMBNAIL_SIZE) -> str:
+def save_file_thumbnail(file_id: str, image_bytes: bytes, size: int = THUMBNAIL_SIZE_FILE) -> str:
+    """업로드된 이미지 바이트로부터 썸네일을 생성하여 디스크에 저장하고, URL 경로를 반환한다."""
+    THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
+
+    arr = np.frombuffer(image_bytes, dtype=np.uint8)
+    image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise RuntimeError("failed to decode image for thumbnail")
+
+    h, w = image.shape[:2]
+    # 조정 사이즈가 원본보다 작은 경우에만 resize 줏행
+    # # scale 비율대로 w, h에 곱해줘서 기존 비율을 유지
+    scale = size / max(h, w)
+    if scale < 1.0:
+        image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+
+    success, encoded = cv2.imencode(".webp", image, [cv2.IMWRITE_WEBP_QUALITY, 80])
+    if not success:
+        raise RuntimeError("failed to encode thumbnail")
+
+    thumb_path = THUMBNAIL_DIR / f"{file_id}.webp"
+    thumb_path.write_bytes(encoded.tobytes())
+    return str(thumb_path).replace("\\", "/")
+
+
+def get_file_thumbnail_url(file_id: str) -> str | None:
+    """미리 생성된 썸네일 파일의 URL 경로를 반환한다. 없으면 None."""
+    thumb_path = THUMBNAIL_DIR / f"{file_id}.webp"
+    if thumb_path.exists():
+        return str(thumb_path).replace("\\", "/")
+    return None
+
+
+def delete_file_thumbnail(file_id: str) -> None:
+    """썸네일 파일을 삭제한다."""
+    thumb_path = THUMBNAIL_DIR / f"{file_id}.webp"
+    if thumb_path.exists():
+        thumb_path.unlink()
+
+
+def _encode_64_thumbnail(image: np.ndarray, thumbnail_size: int = THUMBNAIL_SIZE) -> str:
     """썸네일을 WebP로 인코딩하여 data URL(base64)을 반환한다."""
     import base64
 
@@ -739,11 +781,11 @@ def process_image_batch_tree(
 
         # 썸네일은 base64 data URL로 반환 (디스크 I/O 없음)
         thumb_px = thumbnail_size or THUMBNAIL_SIZE
-        image_url = _encode_thumbnail(result_image, thumb_px)
+        image_64_url = _encode_64_thumbnail(result_image, thumb_px)
 
         node_results.append(TreeNodeResult(
             node_id=node_id,
-            image_url=image_url,
+            image_url=image_64_url,
             execution_ms=round(step_ms, 2),
         ))
 

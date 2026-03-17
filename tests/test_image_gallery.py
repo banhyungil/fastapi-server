@@ -1,8 +1,16 @@
-"""이미지 갤러리 API 테스트 (검색, 삭제, 파일명 수정)"""
+"""이미지 갤러리 API 테스트 (검색, 삭제, 파일명 수정, 썸네일)"""
 
+from pathlib import Path
 from unittest.mock import patch
 
 from httpx import AsyncClient
+
+from app.services.image_processing_service import (
+    save_file_thumbnail,
+    get_file_thumbnail_url,
+    delete_file_thumbnail,
+    THUMBNAIL_DIR,
+)
 
 
 def _mock_page(items=None):
@@ -31,19 +39,28 @@ def _mock_file_row(**overrides):
 
 # ── 검색 (GET /api/image-processing) ──────────────────────────────────────────
 
-
-@patch("app.api.endpoints.image_processing.generate_thumbnail_base64", return_value=None)
-@patch("app.api.endpoints.image_processing.list_files")
+# @patch 기능: 실제 함수의 Mock 객체를 만드는 기능
+# # 호출부에서 해당 객체를 가져온다
+# # # 현재도 router내에 import하는 get_thumbnail_url을 가져오고 있다.
+# # mock_list를 주입한다.
+# 아래 patch 데코레이터 부터 함수인자에 담기게 된다
+@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None) # mock_sumb
+@patch("app.api.endpoints.image_processing.list_files") # mock_list
 async def test_search_by_filename(mock_list, _mock_thumb, client: AsyncClient):
     """GET /api/image-processing?search=sunset — 파일명 검색 파라미터 전달"""
+    # mock_list(list_files)가 호출되면 가짜 페이지 데이터를 반환하도록 설정
+    # # 아하 라우터에 있는 객체를 mock 객체로 치환해서 처리하는거구나
     mock_list.return_value = _mock_page(items=[_mock_file_row()])
+    # 실제 HTTP 요청 — 내부에서 list_files 대신 mock_list가 호출됨
     resp = await client.get("/api/image-processing?search=sunset")
     assert resp.status_code == 200
+    # mock_list가 호출될 때 전달받은 키워드 인자를 꺼내서
+    # search 파라미터가 "sunset"으로 정확히 전달되었는지 검증
     call_kwargs = mock_list.call_args.kwargs
     assert call_kwargs["search"] == "sunset"
 
 
-@patch("app.api.endpoints.image_processing.generate_thumbnail_base64", return_value=None)
+@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None)
 @patch("app.api.endpoints.image_processing.list_files")
 async def test_search_by_size_range(mock_list, _mock_thumb, client: AsyncClient):
     """GET /api/image-processing?minSize=1000&maxSize=500000 — 용량 필터"""
@@ -55,7 +72,7 @@ async def test_search_by_size_range(mock_list, _mock_thumb, client: AsyncClient)
     assert call_kwargs["max_size"] == 500000
 
 
-@patch("app.api.endpoints.image_processing.generate_thumbnail_base64", return_value=None)
+@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None)
 @patch("app.api.endpoints.image_processing.list_files")
 async def test_search_combined(mock_list, _mock_thumb, client: AsyncClient):
     """검색어 + 용량 필터 동시 사용"""
@@ -68,7 +85,7 @@ async def test_search_combined(mock_list, _mock_thumb, client: AsyncClient):
     assert call_kwargs["max_size"] == 1048576
 
 
-@patch("app.api.endpoints.image_processing.generate_thumbnail_base64", return_value=None)
+@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None)
 @patch("app.api.endpoints.image_processing.list_files")
 async def test_search_no_params(mock_list, _mock_thumb, client: AsyncClient):
     """검색 파라미터 없이 호출 시 None 전달"""
@@ -136,3 +153,71 @@ async def test_rename_empty_name(client: AsyncClient):
         json={"originNm": ""},
     )
     assert resp.status_code == 422
+
+
+# ── 썸네일 (save / get / delete) ──────────────────────────────────────────────
+
+
+def test_save_thumbnail_creates_webp(test_image_bytes: bytes):
+    """save_thumbnail — WebP 썸네일 파일이 생성되는지 확인"""
+    file_id = "test-thumb-create"
+    try:
+        url = save_file_thumbnail(file_id, test_image_bytes)
+        thumb_path = THUMBNAIL_DIR / f"{file_id}.webp"
+        assert thumb_path.exists()
+        assert url == str(thumb_path).replace("\\", "/")
+        assert thumb_path.stat().st_size > 0
+    finally:
+        (THUMBNAIL_DIR / f"{file_id}.webp").unlink(missing_ok=True)
+
+
+def test_get_thumbnail_url_exists(test_image_bytes: bytes):
+    """get_thumbnail_url — 썸네일이 존재하면 경로를 반환"""
+    file_id = "test-thumb-get"
+    try:
+        save_file_thumbnail(file_id, test_image_bytes)
+        url = get_file_thumbnail_url(file_id)
+        assert url is not None
+        assert file_id in url
+    finally:
+        (THUMBNAIL_DIR / f"{file_id}.webp").unlink(missing_ok=True)
+
+
+def test_get_thumbnail_url_missing():
+    """get_thumbnail_url — 썸네일이 없으면 None 반환"""
+    assert get_file_thumbnail_url("nonexistent-id") is None
+
+
+def test_delete_thumbnail_removes_file(test_image_bytes: bytes):
+    """delete_thumbnail — 썸네일 파일이 삭제되는지 확인"""
+    file_id = "test-thumb-delete"
+    save_file_thumbnail(file_id, test_image_bytes)
+    thumb_path = THUMBNAIL_DIR / f"{file_id}.webp"
+    assert thumb_path.exists()
+
+    delete_file_thumbnail(file_id)
+    assert not thumb_path.exists()
+
+
+def test_delete_thumbnail_no_error_if_missing():
+    """delete_thumbnail — 파일이 없어도 에러 없이 통과"""
+    delete_file_thumbnail("nonexistent-id")
+
+
+def test_save_thumbnail_size(test_image_bytes: bytes):
+    """save_thumbnail — 원본(100x100)보다 작거나 같은 크기의 썸네일 생성"""
+    file_id = "test-thumb-size"
+    try:
+        save_file_thumbnail(file_id, test_image_bytes, size=50)
+        thumb_path = THUMBNAIL_DIR / f"{file_id}.webp"
+
+        import cv2
+        import numpy as np
+        data = thumb_path.read_bytes()
+        arr = np.frombuffer(data, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        assert img is not None
+        h, w = img.shape[:2]
+        assert max(h, w) <= 50
+    finally:
+        (THUMBNAIL_DIR / f"{file_id}.webp").unlink(missing_ok=True)
