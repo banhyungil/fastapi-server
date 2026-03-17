@@ -5,6 +5,7 @@ from uuid import UUID
 from typing import cast, LiteralString
 
 import psycopg
+from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
@@ -53,7 +54,7 @@ def find_by_id(file_id: str) -> FileRow | None:
         raise RuntimeError("database_url is not configured")
 
     with psycopg.connect(settings.database_url) as conn:
-        with conn.cursor() as cursor:
+        with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
                 SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
@@ -63,20 +64,7 @@ def find_by_id(file_id: str) -> FileRow | None:
             )
             row = cursor.fetchone()
 
-    if row is None:
-        return None
-    return {
-        "id": str(row[0]),
-        "origin_nm": row[1],
-        "nm": row[2],
-        "path": row[3],
-        "mime_type": row[4],
-        "size_bytes": row[5],
-        "uploaded_at": row[6],
-        "options": row[7],
-        "width": row[8],
-        "height": row[9],
-    }
+    return cast(FileRow, row) if row else None
 
 
 def find_by_content_hash(content_hash: str) -> FileRow | None:
@@ -85,7 +73,7 @@ def find_by_content_hash(content_hash: str) -> FileRow | None:
         raise RuntimeError("database_url is not configured")
 
     with psycopg.connect(settings.database_url) as conn:
-        with conn.cursor() as cursor:
+        with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
                 SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
@@ -95,20 +83,7 @@ def find_by_content_hash(content_hash: str) -> FileRow | None:
             )
             row = cursor.fetchone()
 
-    if row is None:
-        return None
-    return {
-        "id": str(row[0]),
-        "origin_nm": row[1],
-        "nm": row[2],
-        "path": row[3],
-        "mime_type": row[4],
-        "size_bytes": row[5],
-        "uploaded_at": row[6],
-        "options": row[7],
-        "width": row[8],
-        "height": row[9],
-    }
+    return cast(FileRow, row) if row else None
 
 
 # Unpack을 이용해 키워드 파라미터에 타입 바인딩 가능
@@ -118,12 +93,12 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
         raise RuntimeError("database_url is not configured")
 
     with psycopg.connect(settings.database_url) as conn:
-        with conn.cursor() as cursor:
+        with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
                 INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options, content_hash, width, height)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id, uploaded_at
+                RETURNING id::text, uploaded_at
                 """,
                 (
                     kwargs["origin_nm"], kwargs["nm"], kwargs["path"],
@@ -140,10 +115,7 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
     if row is None:
         raise RuntimeError("failed to insert file metadata")
 
-    return {
-        "id": str(row[0]),
-        "uploaded_at": row[1],
-    }
+    return cast(InsertedFileMeta, row)
 
 
 def delete_by_id(file_id: str) -> FileRow | None:
@@ -152,7 +124,7 @@ def delete_by_id(file_id: str) -> FileRow | None:
         raise RuntimeError("database_url is not configured")
 
     with psycopg.connect(settings.database_url) as conn:
-        with conn.cursor() as cursor:
+        with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
                 DELETE FROM t_file WHERE id = %s::uuid
@@ -163,20 +135,7 @@ def delete_by_id(file_id: str) -> FileRow | None:
             row = cursor.fetchone()
         conn.commit()
 
-    if row is None:
-        return None
-    return {
-        "id": str(row[0]),
-        "origin_nm": row[1],
-        "nm": row[2],
-        "path": row[3],
-        "mime_type": row[4],
-        "size_bytes": row[5],
-        "uploaded_at": row[6],
-        "options": row[7],
-        "width": row[8],
-        "height": row[9],
-    }
+    return cast(FileRow, row) if row else None
 
 
 def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
@@ -185,7 +144,7 @@ def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
         raise RuntimeError("database_url is not configured")
 
     with psycopg.connect(settings.database_url) as conn:
-        with conn.cursor() as cursor:
+        with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
                 UPDATE t_file SET origin_nm = %s WHERE id = %s::uuid
@@ -196,20 +155,7 @@ def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
             row = cursor.fetchone()
         conn.commit()
 
-    if row is None:
-        return None
-    return {
-        "id": str(row[0]),
-        "origin_nm": row[1],
-        "nm": row[2],
-        "path": row[3],
-        "mime_type": row[4],
-        "size_bytes": row[5],
-        "uploaded_at": row[6],
-        "options": row[7],
-        "width": row[8],
-        "height": row[9],
-    }
+    return cast(FileRow, row) if row else None
 
 
 def get_file_list(
@@ -266,28 +212,12 @@ def get_file_list(
     params.append(limit + 1)
 
     with psycopg.connect(settings.database_url) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(cast(LiteralString ,query), params)
+        with conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(cast(LiteralString, query), params)
             rows = cursor.fetchall()
 
     has_more = len(rows) > limit
-    visible_rows = rows[:limit]
-
-    items: list[FileRow] = [
-        {
-            "id": str(row[0]),
-            "origin_nm": row[1],
-            "nm": row[2],
-            "path": row[3],
-            "mime_type": row[4],
-            "size_bytes": row[5],
-            "uploaded_at": row[6],
-            "options": row[7],
-            "width": row[8],
-            "height": row[9],
-        }
-        for row in visible_rows
-    ]
+    items: list[FileRow] = [cast(FileRow, row) for row in rows[:limit]]
 
     if not items or not has_more:
         return {
