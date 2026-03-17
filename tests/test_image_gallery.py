@@ -32,6 +32,8 @@ def _mock_file_row(**overrides):
         "size_bytes": 204800,
         "uploaded_at": "2026-03-13T12:00:00",
         "options": {},
+        "width": 800,
+        "height": 600,
     }
     base.update(overrides)
     return base

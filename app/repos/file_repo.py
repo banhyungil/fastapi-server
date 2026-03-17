@@ -156,7 +156,7 @@ def delete_by_id(file_id: str) -> FileRow | None:
             cursor.execute(
                 """
                 DELETE FROM t_file WHERE id = %s::uuid
-                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
                 """,
                 (file_id,),
             )
@@ -189,7 +189,7 @@ def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
             cursor.execute(
                 """
                 UPDATE t_file SET origin_nm = %s WHERE id = %s::uuid
-                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options
+                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
                 """,
                 (origin_nm, file_id),
             )
@@ -283,6 +283,8 @@ def get_file_list(
             "size_bytes": row[5],
             "uploaded_at": row[6],
             "options": row[7],
+            "width": row[8],
+            "height": row[9],
         }
         for row in visible_rows
     ]

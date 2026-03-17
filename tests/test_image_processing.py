@@ -149,6 +149,8 @@ async def test_upload_duplicate_image(client: AsyncClient, test_image_bytes: byt
         "mime_type": "image/png",
         "size_bytes": 1234,
         "uploaded_at": "2026-03-09T12:00:00",
+        "width": 100,
+        "height": 100,
     }
     with patch("app.api.endpoints.image_processing.find_file_by_hash", return_value=existing):
         resp = await client.post(
