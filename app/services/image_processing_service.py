@@ -642,8 +642,14 @@ def generate_dzi_for_node(
     """원본 이미지를 로드하고, steps 체인을 처리하여 타겟 노드의 DZI(또는 원본 이미지)를 생성한다.
 
     고해상도(>= TILE_THRESHOLD)이면 DZI 타일 생성, 저해상도이면 원본 PNG 저장.
+    steps가 빈 배열이면 원본 이미지를 그대로 사용한다.
     """
-    target_image = _process_chain_to_node(file_path, steps, node_id)
+    if not steps:
+        target_image = cv2.imread(file_path, cv2.IMREAD_COLOR)
+        if target_image is None:
+            raise ValueError(f"failed to read image: {file_path}")
+    else:
+        target_image = _process_chain_to_node(file_path, steps, node_id)
 
     h, w = target_image.shape[:2]
     if max(h, w) >= TILE_THRESHOLD:
