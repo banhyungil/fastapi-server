@@ -600,7 +600,7 @@ async def preview_apply(
     temp_steps: Annotated[str, Form(alias="tempSteps", description="임시 필터 steps JSON 배열")],
     viewport: Annotated[str, Form(description="crop 시 사용한 viewport JSON")],
     padding: Annotated[int, Form(ge=0, le=200, description="crop 시 사용한 padding")] = 50,
-) -> StreamingResponse:
+) -> dict[str, Any]:
     """캐시된 crop 이미지에 tempSteps를 적용한 결과를 반환한다."""
 
     try:
@@ -628,11 +628,11 @@ async def preview_apply(
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    return StreamingResponse(
-        BytesIO(result_bytes),
-        media_type="image/png",
-        headers={"X-Process-Time-Ms": f"{elapsed_ms:.2f}"},
-    )
+    import base64
+    return {
+        "imageBase64": base64.b64encode(result_bytes).decode(),
+        "executionMs": round(elapsed_ms, 2),
+    }
 
 
 @router.post("/image-processing/preview/apply-all", tags=["img-processing"])
