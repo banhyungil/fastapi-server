@@ -22,7 +22,7 @@ from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSave
 from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id, delete_file, rename_file
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image, save_file_thumbnail, get_file_thumbnail_url
-from app.services.preview_service import create_preview_crop, apply_preview_filter, delete_preview_crop
+from app.services.preview_service import create_preview_crop, apply_preview_filter, apply_preview_filter_all, delete_preview_crop
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -627,6 +627,49 @@ async def preview_apply(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return StreamingResponse(BytesIO(result_bytes), media_type="image/png")
+
+
+@router.post("/image-processing/preview/apply-all", tags=["img-processing"])
+async def preview_apply_all(
+    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
+    crop_id: Annotated[str, Form(alias="cropId", description="crop 캐시 ID")],
+    temp_steps: Annotated[str, Form(alias="tempSteps", description="임시 필터 steps JSON 배열")],
+    viewport: Annotated[str, Form(description="crop 시 사용한 viewport JSON")],
+    padding: Annotated[int, Form(ge=0, le=200, description="crop 시 사용한 padding")] = 50,
+) -> list[dict[str, Any]]:
+    """캐시된 crop 이미지에 tempSteps를 적용하고 각 step별 중간 결과를 반환한다."""
+
+    try:
+        steps_list: list[dict[str, Any]] = json.loads(temp_steps)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid tempSteps JSON: {exc}") from exc
+
+    try:
+        vp = Viewport.model_validate_json(viewport)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid viewport JSON: {exc}") from exc
+
+    try:
+        results = apply_preview_filter_all(
+            file_id=file_id,
+            crop_id=crop_id,
+            temp_steps=steps_list,
+            viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
+            padding=padding,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    import base64
+    return [
+        {
+            "prcType": r.prc_type,
+            "imageBase64": base64.b64encode(r.image_bytes).decode(),
+        }
+        for r in results
+    ]
 
 
 @router.delete("/image-processing/preview/crop/{file_id}/{crop_id}", tags=["img-processing"])

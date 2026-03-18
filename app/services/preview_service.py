@@ -86,15 +86,31 @@ def create_preview_crop(
     )
 
 
-def apply_preview_filter(
-    file_id: str,
-    crop_id: str,
-    temp_steps: list[dict[str, Any]],
-    viewport: dict[str, int],
-    padding: int = 50,
-) -> bytes:
-    """캐시된 crop 이미지에 tempSteps를 적용하여 결과를 반환한다."""
+class IntermediateResult:
+    __slots__ = ("prc_type", "image_bytes")
 
+    def __init__(self, prc_type: str, image_bytes: bytes) -> None:
+        self.prc_type = prc_type
+        self.image_bytes = image_bytes
+
+
+def _remove_padding(
+    image: np.ndarray,
+    cropped: np.ndarray,
+    viewport: dict[str, int],
+    padding: int,
+) -> np.ndarray:
+    """crop 이미지에서 padding 영역을 제거한다."""
+    h_crop, w_crop = cropped.shape[:2]
+    px = min(padding, (w_crop - viewport["w"]) // 2) if w_crop > viewport["w"] else 0
+    py = min(padding, (h_crop - viewport["h"]) // 2) if h_crop > viewport["h"] else 0
+    vw = min(viewport["w"], image.shape[1] - px)
+    vh = min(viewport["h"], image.shape[0] - py)
+    return image[py : py + vh, px : px + vw]
+
+
+def _load_crop(file_id: str, crop_id: str) -> np.ndarray:
+    """캐시된 crop 이미지를 로드한다."""
     crop_path = CACHE_DIR / file_id / "preview" / f"{crop_id}.png"
     if not crop_path.exists():
         raise ValueError(f"preview crop not found: {crop_id}")
@@ -102,9 +118,59 @@ def apply_preview_filter(
     cropped = cv2.imread(str(crop_path), cv2.IMREAD_COLOR)
     if cropped is None:
         raise ValueError(f"failed to read crop image: {crop_id}")
+    return cropped
 
-    # tempSteps 순차 적용
+
+def _apply_steps(image: np.ndarray, temp_steps: list[dict[str, Any]]) -> np.ndarray:
+    """이미지에 temp_steps를 순차 적용한다."""
+    result = image.copy()
+    for step in temp_steps:
+        prc_type: PrcType = step["prcType"]
+        parameters: dict[str, Any] = step.get("parameters", {})
+
+        op = OPERATIONS.get(prc_type)
+        if op is None:
+            raise ValueError(f"unsupported prcType: {prc_type}")
+
+        param_cls = PARAM_MODELS[prc_type]
+        params = param_cls.model_validate(parameters)
+        result = op(result, params)
+    return result
+
+
+def apply_preview_filter(
+    file_id: str,
+    crop_id: str,
+    temp_steps: list[dict[str, Any]],
+    viewport: dict[str, int],
+    padding: int = 50,
+) -> bytes:
+    """캐시된 crop 이미지에 tempSteps를 적용하여 최종 결과를 반환한다."""
+
+    cropped = _load_crop(file_id, crop_id)
+    result = _apply_steps(cropped, temp_steps)
+    result = _remove_padding(result, cropped, viewport, padding)
+
+    success, encoded = cv2.imencode(".png", result)
+    if not success:
+        raise RuntimeError("failed to encode preview result")
+
+    return encoded.tobytes()
+
+
+def apply_preview_filter_all(
+    file_id: str,
+    crop_id: str,
+    temp_steps: list[dict[str, Any]],
+    viewport: dict[str, int],
+    padding: int = 50,
+) -> list[IntermediateResult]:
+    """캐시된 crop 이미지에 tempSteps를 적용하고 각 step별 중간 결과를 반환한다."""
+
+    cropped = _load_crop(file_id, crop_id)
+    intermediates: list[IntermediateResult] = []
     result = cropped.copy()
+
     for step in temp_steps:
         prc_type: PrcType = step["prcType"]
         parameters: dict[str, Any] = step.get("parameters", {})
@@ -117,19 +183,12 @@ def apply_preview_filter(
         params = param_cls.model_validate(parameters)
         result = op(result, params)
 
-    # padding 제거 — crop 시 실제 적용된 padding 계산
-    h_crop, w_crop = cropped.shape[:2]
-    px = min(padding, (w_crop - viewport["w"]) // 2) if w_crop > viewport["w"] else 0
-    py = min(padding, (h_crop - viewport["h"]) // 2) if h_crop > viewport["h"] else 0
-    vw = min(viewport["w"], result.shape[1] - px)
-    vh = min(viewport["h"], result.shape[0] - py)
-    result = result[py : py + vh, px : px + vw]
+        trimmed = _remove_padding(result, cropped, viewport, padding)
+        success, encoded = cv2.imencode(".png", trimmed)
+        if success:
+            intermediates.append(IntermediateResult(prc_type, encoded.tobytes()))
 
-    success, encoded = cv2.imencode(".png", result)
-    if not success:
-        raise RuntimeError("failed to encode preview result")
-
-    return encoded.tobytes()
+    return intermediates
 
 
 def delete_preview_crop(file_id: str, crop_id: str) -> None:
