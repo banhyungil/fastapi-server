@@ -15,7 +15,8 @@ from app.services.image_processing_service import (
     _process_chain_to_node,
 )
 
-PREVIEW_MAX_CROP = 2000  # px — crop 최대 크기 제한
+PREVIEW_MIN_CROP_PIXELS = 2_500        # 총 픽셀 수 최소 (50x50)
+PREVIEW_MAX_CROP_PIXELS = 16_000_000   # 총 픽셀 수 최대 (4000x4000)
 
 
 class PreviewCropResult:
@@ -38,6 +39,14 @@ def create_preview_crop(
     padding: int = 50,
 ) -> PreviewCropResult:
     """노드 이미지를 생성하고 viewport 영역을 crop하여 캐시한다."""
+
+    # viewport 크기 검증 (총 픽셀 수 기준)
+    vw, vh = viewport["w"], viewport["h"]
+    pixels = vw * vh
+    if pixels < PREVIEW_MIN_CROP_PIXELS:
+        raise ValueError(f"crop size too small: {vw}x{vh} = {pixels}px (min {PREVIEW_MIN_CROP_PIXELS})")
+    if pixels > PREVIEW_MAX_CROP_PIXELS:
+        raise ValueError(f"crop size too large: {vw}x{vh} = {pixels}px (max {PREVIEW_MAX_CROP_PIXELS})")
 
     # 노드 이미지 생성
     if node_steps:
