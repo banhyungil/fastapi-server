@@ -18,10 +18,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 # 절대 import
-from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, FileRenameRequest, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse
+from app.schemas.file import TFile, FileListResponse, FileSaveResponse, FileSaveOptions, FileUploadResponse, FileRenameRequest, PrcType, TreeBatchResponse, TreeNodeResultResponse, DziResponse, Viewport, PreviewCropResponse
 from app.services.file_service import insert_file, list_files, find_file_by_hash, find_file_by_id, delete_file, rename_file
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.image_processing_service import process_image, process_image_batch, process_image_batch_tree, generate_dzi_for_node, download_node_image, save_file_thumbnail, get_file_thumbnail_url
+from app.services.preview_service import create_preview_crop, apply_preview_filter, delete_preview_crop
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -539,3 +540,97 @@ async def download_node(
         media_type="image/png",
         headers={"Content-Disposition": f'attachment; filename="{node_id}.png"'},
     )
+
+
+# ── Preview (crop 기반 미리보기) ──────────────────────────────────────────────
+
+
+@router.post(
+    "/image-processing/preview/crop",
+    tags=["img-processing"],
+    response_model=PreviewCropResponse,
+)
+async def preview_crop(
+    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
+    node_steps: Annotated[str, Form(alias="nodeSteps", description="해당 노드까지의 기존 steps JSON 배열")],
+    node_id: Annotated[str, Form(alias="nodeId", description="대상 노드 ID")],
+    viewport: Annotated[str, Form(description="crop 영역 JSON { x, y, w, h } (px)")],
+    padding: Annotated[int, Form(ge=0, le=200, description="경계 아티팩트 방지 여유 영역 (px)")] = 50,
+) -> PreviewCropResponse:
+    """뷰포트 영역의 crop 이미지를 생성하고 캐시한다."""
+
+    file_row = find_file_by_id(file_id)
+    if file_row is None:
+        raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
+
+    try:
+        steps_list: list[dict[str, Any]] = json.loads(node_steps)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid nodeSteps JSON: {exc}") from exc
+
+    try:
+        vp = Viewport.model_validate_json(viewport)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid viewport JSON: {exc}") from exc
+
+    try:
+        result = create_preview_crop(
+            file_path=file_row["path"],
+            node_steps=steps_list,
+            node_id=node_id,
+            viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
+            file_id=file_id,
+            padding=padding,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return PreviewCropResponse(
+        crop_id=result.crop_id,
+        node_image_url=result.node_image_url,
+        width=result.width,
+        height=result.height,
+    )
+
+
+@router.post("/image-processing/preview/apply", tags=["img-processing"])
+async def preview_apply(
+    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
+    crop_id: Annotated[str, Form(alias="cropId", description="crop 캐시 ID")],
+    temp_steps: Annotated[str, Form(alias="tempSteps", description="임시 필터 steps JSON 배열")],
+    viewport: Annotated[str, Form(description="crop 시 사용한 viewport JSON")],
+    padding: Annotated[int, Form(ge=0, le=200, description="crop 시 사용한 padding")] = 50,
+) -> StreamingResponse:
+    """캐시된 crop 이미지에 tempSteps를 적용한 결과를 반환한다."""
+
+    try:
+        steps_list: list[dict[str, Any]] = json.loads(temp_steps)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid tempSteps JSON: {exc}") from exc
+
+    try:
+        vp = Viewport.model_validate_json(viewport)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid viewport JSON: {exc}") from exc
+
+    try:
+        result_bytes = apply_preview_filter(
+            file_id=file_id,
+            crop_id=crop_id,
+            temp_steps=steps_list,
+            viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
+            padding=padding,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return StreamingResponse(BytesIO(result_bytes), media_type="image/png")
+
+
+@router.delete("/image-processing/preview/crop/{file_id}/{crop_id}", tags=["img-processing"])
+async def preview_delete(file_id: str, crop_id: str) -> dict[str, str]:
+    """캐시된 preview crop 파일을 삭제한다."""
+    delete_preview_crop(file_id, crop_id)
+    return {"detail": "deleted"}

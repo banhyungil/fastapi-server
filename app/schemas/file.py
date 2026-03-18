@@ -131,3 +131,17 @@ class FileItemListResponse(CamelModel):
 
 class FileRenameRequest(CamelModel):
     origin_nm: str = Field(..., min_length=1, max_length=255, description="변경할 파일명")
+
+
+class Viewport(CamelModel):
+    x: int = Field(..., description="crop 시작 x 좌표 (px)")
+    y: int = Field(..., description="crop 시작 y 좌표 (px)")
+    w: int = Field(..., ge=1, description="crop 가로 크기 (px)")
+    h: int = Field(..., ge=1, description="crop 세로 크기 (px)")
+
+
+class PreviewCropResponse(CamelModel):
+    crop_id: str = Field(..., description="캐시된 crop 식별자")
+    node_image_url: str = Field(..., description="노드 이미지 crop URL")
+    width: int = Field(..., description="crop 이미지 가로 (px)")
+    height: int = Field(..., description="crop 이미지 세로 (px)")
