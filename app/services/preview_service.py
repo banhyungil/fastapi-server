@@ -117,11 +117,12 @@ def create_preview_crop(
 
 
 class IntermediateResult:
-    __slots__ = ("prc_type", "image_bytes")
+    __slots__ = ("prc_type", "image_bytes", "execution_ms")
 
-    def __init__(self, prc_type: str, image_bytes: bytes) -> None:
+    def __init__(self, prc_type: str, image_bytes: bytes, execution_ms: float = 0) -> None:
         self.prc_type = prc_type
         self.image_bytes = image_bytes
+        self.execution_ms = execution_ms
 
 
 def _remove_padding(
@@ -197,6 +198,8 @@ def apply_preview_filter_all(
 ) -> list[IntermediateResult]:
     """캐시된 crop 이미지에 tempSteps를 적용하고 각 step별 중간 결과를 반환한다."""
 
+    import time as _time
+
     cropped = _load_crop(file_id, crop_id)
     intermediates: list[IntermediateResult] = []
     result = cropped.copy()
@@ -211,12 +214,15 @@ def apply_preview_filter_all(
 
         param_cls = PARAM_MODELS[prc_type]
         params = param_cls.model_validate(parameters)
+
+        step_start = _time.perf_counter()
         result = op(result, params)
+        step_ms = (_time.perf_counter() - step_start) * 1000
 
         trimmed = _remove_padding(result, cropped, viewport, padding)
         success, encoded = cv2.imencode(".png", trimmed)
         if success:
-            intermediates.append(IntermediateResult(prc_type, encoded.tobytes()))
+            intermediates.append(IntermediateResult(prc_type, encoded.tobytes(), round(step_ms, 2)))
 
     return intermediates
 

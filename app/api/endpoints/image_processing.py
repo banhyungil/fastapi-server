@@ -614,6 +614,7 @@ async def preview_apply(
         raise HTTPException(status_code=400, detail=f"invalid viewport JSON: {exc}") from exc
 
     try:
+        start = time.perf_counter()
         result_bytes = apply_preview_filter(
             file_id=file_id,
             crop_id=crop_id,
@@ -621,12 +622,17 @@ async def preview_apply(
             viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
             padding=padding,
         )
+        elapsed_ms = (time.perf_counter() - start) * 1000
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    return StreamingResponse(BytesIO(result_bytes), media_type="image/png")
+    return StreamingResponse(
+        BytesIO(result_bytes),
+        media_type="image/png",
+        headers={"X-Process-Time-Ms": f"{elapsed_ms:.2f}"},
+    )
 
 
 @router.post("/image-processing/preview/apply-all", tags=["img-processing"])
@@ -667,6 +673,7 @@ async def preview_apply_all(
         {
             "prcType": r.prc_type,
             "imageBase64": base64.b64encode(r.image_bytes).decode(),
+            "executionMs": r.execution_ms,
         }
         for r in results
     ]
