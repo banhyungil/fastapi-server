@@ -47,7 +47,7 @@ def _cleanup():
 # ── POST /preview/crop ───────────────────────────────────────────────────────
 
 
-@patch("app.api.endpoints.image_processing.find_file_by_id")
+@patch("app.api.endpoints.files.find_file_by_id")
 async def test_preview_crop(mock_find, client: AsyncClient):
     """POST /preview/crop — 정상 crop 생성"""
     path = _create_test_image(200, 150)
@@ -55,7 +55,7 @@ async def test_preview_crop(mock_find, client: AsyncClient):
 
     try:
         resp = await client.post(
-            "/api/image-processing/preview/crop",
+            "/api/files/preview/crop",
             data={
                 "fileId": "test-file-id",
                 "nodeSteps": "[]",
@@ -80,12 +80,12 @@ async def test_preview_crop(mock_find, client: AsyncClient):
         _cleanup()
 
 
-@patch("app.api.endpoints.image_processing.find_file_by_id")
+@patch("app.api.endpoints.files.find_file_by_id")
 async def test_preview_crop_file_not_found(mock_find, client: AsyncClient):
     """POST /preview/crop — 파일 없음"""
     mock_find.return_value = None
     resp = await client.post(
-        "/api/image-processing/preview/crop",
+        "/api/files/preview/crop",
         data={
             "fileId": "nonexistent",
             "nodeSteps": "[]",
@@ -96,7 +96,7 @@ async def test_preview_crop_file_not_found(mock_find, client: AsyncClient):
     assert resp.status_code == 404
 
 
-@patch("app.api.endpoints.image_processing.find_file_by_id")
+@patch("app.api.endpoints.files.find_file_by_id")
 async def test_preview_crop_invalid_viewport(mock_find, client: AsyncClient):
     """POST /preview/crop — 잘못된 viewport JSON"""
     path = _create_test_image()
@@ -104,7 +104,7 @@ async def test_preview_crop_invalid_viewport(mock_find, client: AsyncClient):
 
     try:
         resp = await client.post(
-            "/api/image-processing/preview/crop",
+            "/api/files/preview/crop",
             data={
                 "fileId": "test-file-id",
                 "nodeSteps": "[]",
@@ -120,7 +120,7 @@ async def test_preview_crop_invalid_viewport(mock_find, client: AsyncClient):
 # ── POST /preview/apply ──────────────────────────────────────────────────────
 
 
-@patch("app.api.endpoints.image_processing.find_file_by_id")
+@patch("app.api.endpoints.files.find_file_by_id")
 async def test_preview_apply(mock_find, client: AsyncClient):
     """POST /preview/apply — crop에 필터 적용"""
     path = _create_test_image(200, 150)
@@ -130,7 +130,7 @@ async def test_preview_apply(mock_find, client: AsyncClient):
         # 먼저 crop 생성
         viewport = {"x": 10, "y": 10, "w": 100, "h": 80}
         crop_resp = await client.post(
-            "/api/image-processing/preview/crop",
+            "/api/files/preview/crop",
             data={
                 "fileId": "test-file-id",
                 "nodeSteps": "[]",
@@ -145,7 +145,7 @@ async def test_preview_apply(mock_find, client: AsyncClient):
         # 필터 적용
         temp_steps = [{"prcType": "gaussianBlur", "parameters": {"kernelSize": 5}}]
         apply_resp = await client.post(
-            "/api/image-processing/preview/apply",
+            "/api/files/preview/apply",
             data={
                 "fileId": "test-file-id",
                 "cropId": crop_id,
@@ -155,13 +155,15 @@ async def test_preview_apply(mock_find, client: AsyncClient):
             },
         )
         assert apply_resp.status_code == 200
-        assert apply_resp.headers["content-type"] == "image/png"
-        assert len(apply_resp.content) > 0
+        assert apply_resp.headers["content-type"] == "application/json"
+        data = apply_resp.json()
+        assert "imageBase64" in data
+        assert "executionMs" in data
     finally:
         _cleanup()
 
 
-@patch("app.api.endpoints.image_processing.find_file_by_id")
+@patch("app.api.endpoints.files.find_file_by_id")
 async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
     """POST /preview/apply — 여러 필터 순차 적용"""
     path = _create_test_image(200, 150)
@@ -170,7 +172,7 @@ async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
     try:
         viewport = {"x": 10, "y": 10, "w": 100, "h": 80}
         crop_resp = await client.post(
-            "/api/image-processing/preview/crop",
+            "/api/files/preview/crop",
             data={
                 "fileId": "test-file-id",
                 "nodeSteps": "[]",
@@ -186,7 +188,7 @@ async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
             {"prcType": "canny", "parameters": {"threshold1": 50, "threshold2": 150}},
         ]
         apply_resp = await client.post(
-            "/api/image-processing/preview/apply",
+            "/api/files/preview/apply",
             data={
                 "fileId": "test-file-id",
                 "cropId": crop_id,
@@ -196,7 +198,8 @@ async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
             },
         )
         assert apply_resp.status_code == 200
-        assert apply_resp.headers["content-type"] == "image/png"
+        assert apply_resp.headers["content-type"] == "application/json"
+        assert "imageBase64" in apply_resp.json()
     finally:
         _cleanup()
 
@@ -204,7 +207,7 @@ async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
 async def test_preview_apply_invalid_crop_id(client: AsyncClient):
     """POST /preview/apply — 존재하지 않는 cropId"""
     resp = await client.post(
-        "/api/image-processing/preview/apply",
+        "/api/files/preview/apply",
         data={
             "fileId": "test-file-id",
             "cropId": "nonexistent",
@@ -218,7 +221,7 @@ async def test_preview_apply_invalid_crop_id(client: AsyncClient):
 # ── DELETE /preview/crop ─────────────────────────────────────────────────────
 
 
-@patch("app.api.endpoints.image_processing.find_file_by_id")
+@patch("app.api.endpoints.files.find_file_by_id")
 async def test_preview_delete(mock_find, client: AsyncClient):
     """DELETE /preview/crop — 캐시 삭제"""
     path = _create_test_image(200, 150)
@@ -227,7 +230,7 @@ async def test_preview_delete(mock_find, client: AsyncClient):
     try:
         # crop 생성
         crop_resp = await client.post(
-            "/api/image-processing/preview/crop",
+            "/api/files/preview/crop",
             data={
                 "fileId": "test-file-id",
                 "nodeSteps": "[]",
@@ -239,7 +242,7 @@ async def test_preview_delete(mock_find, client: AsyncClient):
 
         # 삭제
         del_resp = await client.delete(
-            f"/api/image-processing/preview/crop/test-file-id/{crop_id}"
+            f"/api/files/preview/crop/test-file-id/{crop_id}"
         )
         assert del_resp.status_code == 200
         assert del_resp.json()["detail"] == "deleted"

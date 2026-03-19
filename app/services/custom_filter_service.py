@@ -83,7 +83,7 @@ def create_custom_filter(
     nm: str,
     description: str,
     code: str,
-    params: dict[str, Any],
+    params: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return insert_custom_filter(
         nm=nm, description=description, code=code, params=params,
@@ -104,7 +104,7 @@ def modify_custom_filter(
     nm: str | None = None,
     description: str | None = None,
     code: str | None = None,
-    params: dict[str, Any] | None = None,
+    params: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     return update_custom_filter(
         filter_id, nm=nm, description=description, code=code, params=params,

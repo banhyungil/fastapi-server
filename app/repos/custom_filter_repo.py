@@ -16,7 +16,7 @@ def insert_custom_filter(
     nm: str,
     description: str,
     code: str,
-    params: dict[str, Any],
+    params: list[dict[str, Any]],
 ) -> dict[str, Any]:
     _ensure_db()
     with psycopg.connect(settings.database_url) as conn:
@@ -76,7 +76,7 @@ def update_custom_filter(
     nm: str | None = None,
     description: str | None = None,
     code: str | None = None,
-    params: dict[str, Any] | None = None,
+    params: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     _ensure_db()
     with psycopg.connect(settings.database_url) as conn:

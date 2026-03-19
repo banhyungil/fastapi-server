@@ -39,22 +39,22 @@ def _mock_file_row(**overrides):
     return base
 
 
-# ── 검색 (GET /api/image-processing) ──────────────────────────────────────────
+# ── 검색 (GET /api/files) ──────────────────────────────────────────
 
 # @patch 기능: 실제 함수의 Mock 객체를 만드는 기능
 # # 호출부에서 해당 객체를 가져온다
-# # # 현재도 router내에 import하는 get_thumbnail_url을 가져오고 있다.
+# # # 현재도 router내에 import하는 get_file_thumbnail_url을 가져오고 있다.
 # # mock_list를 주입한다.
 # 아래 patch 데코레이터 부터 함수인자에 담기게 된다
-@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None) # mock_sumb
-@patch("app.api.endpoints.image_processing.list_files") # mock_list
+@patch("app.api.endpoints.files.get_file_thumbnail_url", return_value=None) # mock_sumb
+@patch("app.api.endpoints.files.list_files") # mock_list
 async def test_search_by_filename(mock_list, _mock_thumb, client: AsyncClient):
-    """GET /api/image-processing?search=sunset — 파일명 검색 파라미터 전달"""
+    """GET /api/files?search=sunset — 파일명 검색 파라미터 전달"""
     # mock_list(list_files)가 호출되면 가짜 페이지 데이터를 반환하도록 설정
     # # 아하 라우터에 있는 객체를 mock 객체로 치환해서 처리하는거구나
     mock_list.return_value = _mock_page(items=[_mock_file_row()])
     # 실제 HTTP 요청 — 내부에서 list_files 대신 mock_list가 호출됨
-    resp = await client.get("/api/image-processing?search=sunset")
+    resp = await client.get("/api/files?search=sunset")
     assert resp.status_code == 200
     # mock_list가 호출될 때 전달받은 키워드 인자를 꺼내서
     # search 파라미터가 "sunset"으로 정확히 전달되었는지 검증
@@ -62,24 +62,24 @@ async def test_search_by_filename(mock_list, _mock_thumb, client: AsyncClient):
     assert call_kwargs["search"] == "sunset"
 
 
-@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None)
-@patch("app.api.endpoints.image_processing.list_files")
+@patch("app.api.endpoints.files.get_file_thumbnail_url", return_value=None)
+@patch("app.api.endpoints.files.list_files")
 async def test_search_by_size_range(mock_list, _mock_thumb, client: AsyncClient):
-    """GET /api/image-processing?minSize=1000&maxSize=500000 — 용량 필터"""
+    """GET /api/files?minSize=1000&maxSize=500000 — 용량 필터"""
     mock_list.return_value = _mock_page()
-    resp = await client.get("/api/image-processing?minSize=1000&maxSize=500000")
+    resp = await client.get("/api/files?minSize=1000&maxSize=500000")
     assert resp.status_code == 200
     call_kwargs = mock_list.call_args.kwargs
     assert call_kwargs["min_size"] == 1000
     assert call_kwargs["max_size"] == 500000
 
 
-@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None)
-@patch("app.api.endpoints.image_processing.list_files")
+@patch("app.api.endpoints.files.get_file_thumbnail_url", return_value=None)
+@patch("app.api.endpoints.files.list_files")
 async def test_search_combined(mock_list, _mock_thumb, client: AsyncClient):
     """검색어 + 용량 필터 동시 사용"""
     mock_list.return_value = _mock_page()
-    resp = await client.get("/api/image-processing?search=photo&minSize=0&maxSize=1048576")
+    resp = await client.get("/api/files?search=photo&minSize=0&maxSize=1048576")
     assert resp.status_code == 200
     call_kwargs = mock_list.call_args.kwargs
     assert call_kwargs["search"] == "photo"
@@ -87,12 +87,12 @@ async def test_search_combined(mock_list, _mock_thumb, client: AsyncClient):
     assert call_kwargs["max_size"] == 1048576
 
 
-@patch("app.api.endpoints.image_processing.get_thumbnail_url", return_value=None)
-@patch("app.api.endpoints.image_processing.list_files")
+@patch("app.api.endpoints.files.get_file_thumbnail_url", return_value=None)
+@patch("app.api.endpoints.files.list_files")
 async def test_search_no_params(mock_list, _mock_thumb, client: AsyncClient):
     """검색 파라미터 없이 호출 시 None 전달"""
     mock_list.return_value = _mock_page()
-    resp = await client.get("/api/image-processing")
+    resp = await client.get("/api/files")
     assert resp.status_code == 200
     call_kwargs = mock_list.call_args.kwargs
     assert call_kwargs["search"] is None
@@ -100,36 +100,36 @@ async def test_search_no_params(mock_list, _mock_thumb, client: AsyncClient):
     assert call_kwargs["max_size"] is None
 
 
-# ── 삭제 (DELETE /api/image-processing/{file_id}) ────────────────────────────
+# ── 삭제 (DELETE /api/files/{file_id}) ────────────────────────────
 
 
-@patch("app.api.endpoints.image_processing.delete_file")
+@patch("app.api.endpoints.files.delete_file")
 async def test_delete_success(mock_delete, client: AsyncClient):
-    """DELETE /api/image-processing/{id} — 정상 삭제"""
+    """DELETE /api/files/{id} — 정상 삭제"""
     mock_delete.return_value = _mock_file_row()
-    resp = await client.delete("/api/image-processing/aaaa-bbbb-cccc-dddd")
+    resp = await client.delete("/api/files/aaaa-bbbb-cccc-dddd")
     assert resp.status_code == 200
     assert resp.json()["detail"] == "deleted"
     mock_delete.assert_called_once_with("aaaa-bbbb-cccc-dddd")
 
 
-@patch("app.api.endpoints.image_processing.delete_file")
+@patch("app.api.endpoints.files.delete_file")
 async def test_delete_not_found(mock_delete, client: AsyncClient):
-    """DELETE /api/image-processing/{id} — 존재하지 않는 파일"""
+    """DELETE /api/files/{id} — 존재하지 않는 파일"""
     mock_delete.side_effect = ValueError("file not found: unknown-id")
-    resp = await client.delete("/api/image-processing/unknown-id")
+    resp = await client.delete("/api/files/unknown-id")
     assert resp.status_code == 404
 
 
-# ── 파일명 수정 (PATCH /api/image-processing/{file_id}) ──────────────────────
+# ── 파일명 수정 (PATCH /api/files/{file_id}) ──────────────────────
 
 
-@patch("app.api.endpoints.image_processing.rename_file")
+@patch("app.api.endpoints.files.rename_file")
 async def test_rename_success(mock_rename, client: AsyncClient):
-    """PATCH /api/image-processing/{id} — 정상 파일명 수정"""
+    """PATCH /api/files/{id} — 정상 파일명 수정"""
     mock_rename.return_value = _mock_file_row(origin_nm="new_name.jpg")
     resp = await client.patch(
-        "/api/image-processing/aaaa-bbbb-cccc-dddd",
+        "/api/files/aaaa-bbbb-cccc-dddd",
         json={"originNm": "new_name.jpg"},
     )
     assert resp.status_code == 200
@@ -137,21 +137,21 @@ async def test_rename_success(mock_rename, client: AsyncClient):
     mock_rename.assert_called_once_with("aaaa-bbbb-cccc-dddd", "new_name.jpg")
 
 
-@patch("app.api.endpoints.image_processing.rename_file")
+@patch("app.api.endpoints.files.rename_file")
 async def test_rename_not_found(mock_rename, client: AsyncClient):
-    """PATCH /api/image-processing/{id} — 존재하지 않는 파일"""
+    """PATCH /api/files/{id} — 존재하지 않는 파일"""
     mock_rename.side_effect = ValueError("file not found: unknown-id")
     resp = await client.patch(
-        "/api/image-processing/unknown-id",
+        "/api/files/unknown-id",
         json={"originNm": "new_name.jpg"},
     )
     assert resp.status_code == 404
 
 
 async def test_rename_empty_name(client: AsyncClient):
-    """PATCH /api/image-processing/{id} — 빈 파일명 유효성 검증"""
+    """PATCH /api/files/{id} — 빈 파일명 유효성 검증"""
     resp = await client.patch(
-        "/api/image-processing/aaaa-bbbb-cccc-dddd",
+        "/api/files/aaaa-bbbb-cccc-dddd",
         json={"originNm": ""},
     )
     assert resp.status_code == 422
@@ -173,8 +173,8 @@ def test_save_thumbnail_creates_webp(test_image_bytes: bytes):
         (THUMBNAIL_DIR / f"{file_id}.webp").unlink(missing_ok=True)
 
 
-def test_get_thumbnail_url_exists(test_image_bytes: bytes):
-    """get_thumbnail_url — 썸네일이 존재하면 경로를 반환"""
+def test_get_file_thumbnail_url_exists(test_image_bytes: bytes):
+    """get_file_thumbnail_url — 썸네일이 존재하면 경로를 반환"""
     file_id = "test-thumb-get"
     try:
         save_file_thumbnail(file_id, test_image_bytes)
@@ -185,8 +185,8 @@ def test_get_thumbnail_url_exists(test_image_bytes: bytes):
         (THUMBNAIL_DIR / f"{file_id}.webp").unlink(missing_ok=True)
 
 
-def test_get_thumbnail_url_missing():
-    """get_thumbnail_url — 썸네일이 없으면 None 반환"""
+def test_get_file_thumbnail_url_missing():
+    """get_file_thumbnail_url — 썸네일이 없으면 None 반환"""
     assert get_file_thumbnail_url("nonexistent-id") is None
 
 

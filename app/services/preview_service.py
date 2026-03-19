@@ -1,5 +1,6 @@
 """이미지 미리보기 (crop + 필터 적용) 서비스."""
 
+import time as _time
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -197,8 +198,6 @@ def apply_preview_filter_all(
     padding: int = 50,
 ) -> list[IntermediateResult]:
     """캐시된 crop 이미지에 tempSteps를 적용하고 각 step별 중간 결과를 반환한다."""
-
-    import time as _time
 
     cropped = _load_crop(file_id, crop_id)
     intermediates: list[IntermediateResult] = []

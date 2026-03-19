@@ -1,10 +1,13 @@
 from fastapi import APIRouter
 
-from app.api.endpoints import custom_filter_router, file_router, image_processing_router, preset_router, process_router
+from app.api.endpoints import (
+    custom_filters_router, files_router, filters_router,
+    presets_router, processes_router,
+)
 
 api_router = APIRouter()
-api_router.include_router(custom_filter_router)
-api_router.include_router(file_router)
-api_router.include_router(image_processing_router)
-api_router.include_router(preset_router)
-api_router.include_router(process_router)
+api_router.include_router(custom_filters_router)
+api_router.include_router(files_router)
+api_router.include_router(filters_router)
+api_router.include_router(presets_router)
+api_router.include_router(processes_router)

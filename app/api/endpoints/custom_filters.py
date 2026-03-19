@@ -64,7 +64,7 @@ async def create_custom_filter_endpoint(
         nm=body.nm,
         description=body.description,
         code=body.code,
-        params=body.params,
+        params=[p.model_dump() for p in body.params],
     )
     return CustomFilterResponse.model_validate(result)
 
@@ -84,7 +84,7 @@ async def update_custom_filter_endpoint(
         nm=body.nm,
         description=body.description,
         code=body.code,
-        params=body.params,
+        params=[p.model_dump() for p in body.params] if body.params is not None else None,
     )
     if result is None:
         raise HTTPException(status_code=404, detail="custom filter not found")
