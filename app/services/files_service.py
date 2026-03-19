@@ -11,7 +11,7 @@ import numpy as np
 
 from app.schemas.file import PrcType
 from app.schemas.image_processing import PARAM_MODELS
-from app.repos.file_repo import (
+from app.repos.files_repo import (
     FileRow, FileRowInput, FileRowPage, InsertedFileMeta,
     insert_file_row, get_file_list, find_by_content_hash,
     find_by_id, delete_by_id, update_origin_nm,

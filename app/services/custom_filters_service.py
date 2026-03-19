@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from app.core.errors import AppError, ErrorCode
-from app.repos.custom_filter_repo import (
+from app.repos.custom_filters_repo import (
     insert_custom_filter,
     get_custom_filter_list,
     get_custom_filter_by_id,
