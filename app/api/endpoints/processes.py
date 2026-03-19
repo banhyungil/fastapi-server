@@ -9,7 +9,7 @@ from app.schemas.process import (
     ProcessResponse,
     ProcessListResponse,
 )
-from app.services.process_service import (
+from app.services.processes_service import (
     create_process,
     list_processes,
     get_process,

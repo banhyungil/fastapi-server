@@ -23,16 +23,14 @@ from app.schemas.file import (
     TreeBatchResponse, TreeNodeResultResponse,
     DziResponse, Viewport, PreviewCropResponse,
 )
-from app.services.file_service import (
+from app.services.files_service import (
     insert_file, list_files, find_file_by_hash, find_file_by_id,
     delete_file, rename_file,
-)
-from app.services.image_processing_service import (
-    save_file_thumbnail, get_file_thumbnail_url,
     process_image, process_image_batch_tree,
-    generate_dzi_for_node, download_node_image,
 )
-from app.services.preview_service import (
+from app.services.thumbnails import save_file_thumbnail, get_file_thumbnail_url
+from app.services.dzi import generate_dzi_for_node, download_node_image
+from app.services.crop import (
     create_preview_crop, apply_preview_filter,
     apply_preview_filter_all, delete_preview_crop,
 )

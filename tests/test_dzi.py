@@ -4,13 +4,9 @@ import shutil
 
 import numpy as np
 
-from app.services.image_processing_service import (
-    CACHE_DIR,
-    TILE_THRESHOLD,
-    _save_node_dzi,
-    _save_node_image,
-    process_image_batch_tree,
-)
+from app.services.cache import CACHE_DIR
+from app.services.dzi import TILE_THRESHOLD, _save_node_dzi, _save_node_image
+from app.services.files_service import process_image_batch_tree
 
 
 def test_save_node_dzi_creates_tiles():

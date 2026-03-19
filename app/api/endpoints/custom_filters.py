@@ -11,7 +11,7 @@ from app.schemas.custom_filter import (
     CustomFilterResponse,
     CustomFilterUpdate,
 )
-from app.services.custom_filter_service import (
+from app.services.custom_filters_service import (
     create_custom_filter,
     get_custom_filter,
     list_custom_filters,

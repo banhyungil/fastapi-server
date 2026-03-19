@@ -8,7 +8,7 @@ from app.schemas.preset import (
     PresetResponse,
     PresetListResponse,
 )
-from app.services.preset_service import (
+from app.services.presets_service import (
     create_preset,
     list_presets,
     get_preset,

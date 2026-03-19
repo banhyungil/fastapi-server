@@ -1,4 +1,4 @@
-"""이미지 미리보기 (crop + 필터 적용) 서비스."""
+"""Crop 기반 이미지 미리보기 서비스."""
 
 import time as _time
 from pathlib import Path
@@ -10,11 +10,9 @@ import numpy as np
 
 from app.schemas.file import PrcType
 from app.schemas.image_processing import PARAM_MODELS
-from app.services.image_processing_service import (
-    CACHE_DIR,
-    OPERATIONS,
-    _process_chain_to_node,
-)
+from app.services.cache import CACHE_DIR
+from app.services.operations import OPERATIONS
+from app.services.dzi import _process_chain_to_node
 
 PREVIEW_MIN_CROP_PIXELS = 2_500        # 총 픽셀 수 최소 (50x50)
 PREVIEW_MAX_CROP_PIXELS = 16_000_000   # 총 픽셀 수 최대 (4000x4000)
