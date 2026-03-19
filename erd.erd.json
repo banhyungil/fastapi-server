@@ -1,0 +1,450 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+  "version": "3.0.0",
+  "settings": {
+    "width": 6000,
+    "height": 4000,
+    "scrollTop": -100,
+    "scrollLeft": -100,
+    "zoomLevel": 0.75,
+    "show": 495,
+    "database": 16,
+    "databaseName": "image_processing",
+    "canvasType": "ERD",
+    "language": 16,
+    "tableNameCase": 8,
+    "columnNameCase": 8,
+    "bracketType": 1,
+    "relationshipDataTypeSync": true,
+    "relationshipOptimization": false,
+    "columnOrder": [1, 2, 4, 8, 16, 32, 64],
+    "maxWidthComment": 200
+  },
+  "doc": {
+    "tableIds": ["t1", "t2", "t3", "t4", "t5", "t6"],
+    "relationshipIds": ["r1", "r2", "r3", "r4", "r5", "r6", "r7"],
+    "indexIds": ["ix1", "ix2", "ix3", "ix4"],
+    "memoIds": []
+  },
+  "collections": {
+    "tableEntities": {
+      "t1": {
+        "id": "t1",
+        "name": "t_file",
+        "comment": "물리 파일 메타데이터",
+        "columnIds": ["c1-1", "c1-2", "c1-3", "c1-4", "c1-5", "c1-6", "c1-7", "c1-8", "c1-9", "c1-10", "c1-11"],
+        "seqColumnIds": ["c1-1", "c1-2", "c1-3", "c1-4", "c1-5", "c1-6", "c1-7", "c1-8", "c1-9", "c1-10", "c1-11"],
+        "ui": { "x": 50, "y": 50, "zIndex": 1, "widthName": 60, "widthComment": 180, "color": "" },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "t2": {
+        "id": "t2",
+        "name": "t_image_process",
+        "comment": "이미지 편집 세션",
+        "columnIds": ["c2-1", "c2-2", "c2-3", "c2-4", "c2-5", "c2-6", "c2-7", "c2-8"],
+        "seqColumnIds": ["c2-1", "c2-2", "c2-3", "c2-4", "c2-5", "c2-6", "c2-7", "c2-8"],
+        "ui": { "x": 550, "y": 50, "zIndex": 2, "widthName": 120, "widthComment": 180, "color": "" },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "t3": {
+        "id": "t3",
+        "name": "t_process_step",
+        "comment": "처리 단계 (트리 구조)",
+        "columnIds": ["c3-1", "c3-2", "c3-3", "c3-4", "c3-5", "c3-6", "c3-7", "c3-8", "c3-9", "c3-10"],
+        "seqColumnIds": ["c3-1", "c3-2", "c3-3", "c3-4", "c3-5", "c3-6", "c3-7", "c3-8", "c3-9", "c3-10"],
+        "ui": { "x": 550, "y": 450, "zIndex": 3, "widthName": 120, "widthComment": 200, "color": "" },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "t4": {
+        "id": "t4",
+        "name": "t_preset",
+        "comment": "프리셋 마스터",
+        "columnIds": ["c4-1", "c4-2", "c4-3", "c4-4", "c4-5", "c4-6"],
+        "seqColumnIds": ["c4-1", "c4-2", "c4-3", "c4-4", "c4-5", "c4-6"],
+        "ui": { "x": 1150, "y": 50, "zIndex": 4, "widthName": 80, "widthComment": 180, "color": "" },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "t5": {
+        "id": "t5",
+        "name": "t_preset_step",
+        "comment": "프리셋 단계 (트리 구조)",
+        "columnIds": ["c5-1", "c5-2", "c5-3", "c5-4", "c5-5", "c5-6", "c5-7"],
+        "seqColumnIds": ["c5-1", "c5-2", "c5-3", "c5-4", "c5-5", "c5-6", "c5-7"],
+        "ui": { "x": 1150, "y": 400, "zIndex": 5, "widthName": 100, "widthComment": 200, "color": "" },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "t6": {
+        "id": "t6",
+        "name": "t_custom_filter",
+        "comment": "사용자 정의 필터",
+        "columnIds": ["c6-1", "c6-2", "c6-3", "c6-4", "c6-5", "c6-6", "c6-7", "c6-8"],
+        "seqColumnIds": ["c6-1", "c6-2", "c6-3", "c6-4", "c6-5", "c6-6", "c6-7", "c6-8"],
+        "ui": { "x": 50, "y": 550, "zIndex": 6, "widthName": 100, "widthComment": 180, "color": "" },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      }
+    },
+    "tableColumnEntities": {
+      "c1-1": {
+        "id": "c1-1", "tableId": "t1", "name": "id", "comment": "파일 고유 식별자", "dataType": "uuid", "default": "gen_random_uuid()", "options": 10,
+        "ui": { "keys": 1, "widthName": 60, "widthComment": 120, "widthDataType": 60, "widthDefault": 120 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-2": {
+        "id": "c1-2", "tableId": "t1", "name": "origin_nm", "comment": "업로드 원본 파일명", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 130, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-3": {
+        "id": "c1-3", "tableId": "t1", "name": "nm", "comment": "서버 저장 파일명", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-4": {
+        "id": "c1-4", "tableId": "t1", "name": "path", "comment": "서버 내 파일 경로", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-5": {
+        "id": "c1-5", "tableId": "t1", "name": "mime_type", "comment": "MIME 타입", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-6": {
+        "id": "c1-6", "tableId": "t1", "name": "size_bytes", "comment": "파일 크기 (bytes)", "dataType": "int8", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-7": {
+        "id": "c1-7", "tableId": "t1", "name": "uploaded_at", "comment": "업로드 일시", "dataType": "timestamptz", "default": "now()", "options": 8,
+        "ui": { "keys": 0, "widthName": 90, "widthComment": 90, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-8": {
+        "id": "c1-8", "tableId": "t1", "name": "uploader_id", "comment": "업로더 ID", "dataType": "uuid", "default": "", "options": 0,
+        "ui": { "keys": 0, "widthName": 90, "widthComment": 80, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-9": {
+        "id": "c1-9", "tableId": "t1", "name": "options", "comment": "추가 메타데이터", "dataType": "jsonb", "default": "'{}'", "options": 8,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 110, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-10": {
+        "id": "c1-10", "tableId": "t1", "name": "content_hash", "comment": "SHA-256 중복 방지", "dataType": "text", "default": "", "options": 4,
+        "ui": { "keys": 0, "widthName": 100, "widthComment": 130, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c1-11": {
+        "id": "c1-11", "tableId": "t1", "name": "width/height", "comment": "이미지 해상도 (px)", "dataType": "int4", "default": "", "options": 0,
+        "ui": { "keys": 0, "widthName": 100, "widthComment": 130, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+
+      "c2-1": {
+        "id": "c2-1", "tableId": "t2", "name": "id", "comment": "세션 고유 식별자", "dataType": "uuid", "default": "gen_random_uuid()", "options": 10,
+        "ui": { "keys": 1, "widthName": 60, "widthComment": 120, "widthDataType": 60, "widthDefault": 120 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c2-2": {
+        "id": "c2-2", "tableId": "t2", "name": "nm", "comment": "프로세스 명칭", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 100, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c2-3": {
+        "id": "c2-3", "tableId": "t2", "name": "file_id", "comment": "원본 파일 ID", "dataType": "uuid", "default": "", "options": 8,
+        "ui": { "keys": 2, "widthName": 60, "widthComment": 100, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c2-4": {
+        "id": "c2-4", "tableId": "t2", "name": "final_file_id", "comment": "최종 결과 파일 ID", "dataType": "uuid", "default": "", "options": 0,
+        "ui": { "keys": 2, "widthName": 100, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c2-5": {
+        "id": "c2-5", "tableId": "t2", "name": "is_latest", "comment": "최신 편집본 여부", "dataType": "bool", "default": "true", "options": 0,
+        "ui": { "keys": 0, "widthName": 70, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c2-6": {
+        "id": "c2-6", "tableId": "t2", "name": "created_at", "comment": "생성 일시", "dataType": "timestamptz", "default": "now()", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c2-7": {
+        "id": "c2-7", "tableId": "t2", "name": "updated_at", "comment": "수정 일시", "dataType": "timestamptz", "default": "now()", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c2-8": {
+        "id": "c2-8", "tableId": "t2", "name": "total_execution_ms", "comment": "전체 처리 시간 (ms)", "dataType": "int8", "default": "", "options": 0,
+        "ui": { "keys": 0, "widthName": 130, "widthComment": 130, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+
+      "c3-1": {
+        "id": "c3-1", "tableId": "t3", "name": "id", "comment": "단계 고유 식별자", "dataType": "uuid", "default": "gen_random_uuid()", "options": 10,
+        "ui": { "keys": 1, "widthName": 60, "widthComment": 120, "widthDataType": 60, "widthDefault": 120 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-2": {
+        "id": "c3-2", "tableId": "t3", "name": "process_id", "comment": "소속 편집 세션 ID", "dataType": "uuid", "default": "", "options": 8,
+        "ui": { "keys": 2, "widthName": 80, "widthComment": 130, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-3": {
+        "id": "c3-3", "tableId": "t3", "name": "parent_id", "comment": "부모 노드 ID (트리)", "dataType": "uuid", "default": "", "options": 0,
+        "ui": { "keys": 2, "widthName": 80, "widthComment": 140, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-4": {
+        "id": "c3-4", "tableId": "t3", "name": "preset_id", "comment": "참조 프리셋 ID", "dataType": "uuid", "default": "", "options": 0,
+        "ui": { "keys": 2, "widthName": 80, "widthComment": 110, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-5": {
+        "id": "c3-5", "tableId": "t3", "name": "step_order", "comment": "정렬 순서", "dataType": "int4", "default": "0", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-6": {
+        "id": "c3-6", "tableId": "t3", "name": "algorithm_nm", "comment": "알고리즘 식별 명칭", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 100, "widthComment": 130, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-7": {
+        "id": "c3-7", "tableId": "t3", "name": "parameters", "comment": "파라미터 (JSONB)", "dataType": "jsonb", "default": "'{}'", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-8": {
+        "id": "c3-8", "tableId": "t3", "name": "execution_ms", "comment": "처리 시간 (ms)", "dataType": "int8", "default": "", "options": 0,
+        "ui": { "keys": 0, "widthName": 100, "widthComment": 110, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-9": {
+        "id": "c3-9", "tableId": "t3", "name": "is_enabled", "comment": "활성화 여부", "dataType": "bool", "default": "true", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 90, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c3-10": {
+        "id": "c3-10", "tableId": "t3", "name": "created_at", "comment": "생성 일시", "dataType": "timestamptz", "default": "now()", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+
+      "c4-1": {
+        "id": "c4-1", "tableId": "t4", "name": "id", "comment": "프리셋 고유 식별자", "dataType": "uuid", "default": "gen_random_uuid()", "options": 10,
+        "ui": { "keys": 1, "widthName": 60, "widthComment": 130, "widthDataType": 60, "widthDefault": 120 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c4-2": {
+        "id": "c4-2", "tableId": "t4", "name": "nm", "comment": "프리셋 명칭", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 90, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c4-3": {
+        "id": "c4-3", "tableId": "t4", "name": "description", "comment": "상세 설명", "dataType": "text", "default": "", "options": 0,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c4-4": {
+        "id": "c4-4", "tableId": "t4", "name": "is_system", "comment": "시스템 기본 제공 여부", "dataType": "bool", "default": "false", "options": 8,
+        "ui": { "keys": 0, "widthName": 70, "widthComment": 140, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c4-5": {
+        "id": "c4-5", "tableId": "t4", "name": "created_at", "comment": "생성 일시", "dataType": "timestamptz", "default": "now()", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c4-6": {
+        "id": "c4-6", "tableId": "t4", "name": "updated_at", "comment": "수정 일시", "dataType": "timestamptz", "default": "now()", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+
+      "c5-1": {
+        "id": "c5-1", "tableId": "t5", "name": "id", "comment": "프리셋 단계 식별자", "dataType": "uuid", "default": "gen_random_uuid()", "options": 10,
+        "ui": { "keys": 1, "widthName": 60, "widthComment": 130, "widthDataType": 60, "widthDefault": 120 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c5-2": {
+        "id": "c5-2", "tableId": "t5", "name": "preset_id", "comment": "소속 프리셋 ID", "dataType": "uuid", "default": "", "options": 8,
+        "ui": { "keys": 2, "widthName": 80, "widthComment": 110, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c5-3": {
+        "id": "c5-3", "tableId": "t5", "name": "parent_id", "comment": "부모 노드 ID (트리)", "dataType": "uuid", "default": "", "options": 0,
+        "ui": { "keys": 2, "widthName": 80, "widthComment": 140, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c5-4": {
+        "id": "c5-4", "tableId": "t5", "name": "step_order", "comment": "정렬 순서", "dataType": "int4", "default": "0", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c5-5": {
+        "id": "c5-5", "tableId": "t5", "name": "algorithm_nm", "comment": "알고리즘 식별 명칭", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 100, "widthComment": 130, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c5-6": {
+        "id": "c5-6", "tableId": "t5", "name": "parameters", "comment": "파라미터 (JSONB)", "dataType": "jsonb", "default": "'{}'", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c5-7": {
+        "id": "c5-7", "tableId": "t5", "name": "created_at", "comment": "생성 일시", "dataType": "timestamptz", "default": "now()", "options": 8,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+
+      "c6-1": {
+        "id": "c6-1", "tableId": "t6", "name": "id", "comment": "필터 고유 식별자", "dataType": "uuid", "default": "gen_random_uuid()", "options": 10,
+        "ui": { "keys": 1, "widthName": 60, "widthComment": 120, "widthDataType": 60, "widthDefault": 120 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c6-2": {
+        "id": "c6-2", "tableId": "t6", "name": "nm", "comment": "필터 이름", "dataType": "varchar(100)", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c6-3": {
+        "id": "c6-3", "tableId": "t6", "name": "description", "comment": "필터 상세 설명", "dataType": "text", "default": "''", "options": 0,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 100, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c6-4": {
+        "id": "c6-4", "tableId": "t6", "name": "code", "comment": "필터 Python 코드", "dataType": "text", "default": "", "options": 8,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 120, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c6-5": {
+        "id": "c6-5", "tableId": "t6", "name": "params", "comment": "파라미터 정의 (JSON)", "dataType": "jsonb", "default": "'{}'", "options": 0,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 140, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c6-6": {
+        "id": "c6-6", "tableId": "t6", "name": "version", "comment": "버전 번호", "dataType": "int4", "default": "1", "options": 0,
+        "ui": { "keys": 0, "widthName": 60, "widthComment": 80, "widthDataType": 60, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c6-7": {
+        "id": "c6-7", "tableId": "t6", "name": "created_at", "comment": "생성 일시", "dataType": "timestamptz", "default": "now()", "options": 0,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "c6-8": {
+        "id": "c6-8", "tableId": "t6", "name": "updated_at", "comment": "수정 일시", "dataType": "timestamptz", "default": "now()", "options": 0,
+        "ui": { "keys": 0, "widthName": 80, "widthComment": 80, "widthDataType": 90, "widthDefault": 60 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      }
+    },
+    "relationshipEntities": {
+      "r1": {
+        "id": "r1",
+        "identification": false,
+        "relationshipType": 16,
+        "startRelationshipType": 2,
+        "start": { "tableId": "t1", "columnIds": ["c1-1"], "x": 0, "y": 0, "direction": 2 },
+        "end": { "tableId": "t2", "columnIds": ["c2-3"], "x": 0, "y": 0, "direction": 1 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "r2": {
+        "id": "r2",
+        "identification": false,
+        "relationshipType": 4,
+        "startRelationshipType": 2,
+        "start": { "tableId": "t1", "columnIds": ["c1-1"], "x": 0, "y": 0, "direction": 2 },
+        "end": { "tableId": "t2", "columnIds": ["c2-4"], "x": 0, "y": 0, "direction": 1 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "r3": {
+        "id": "r3",
+        "identification": false,
+        "relationshipType": 16,
+        "startRelationshipType": 2,
+        "start": { "tableId": "t2", "columnIds": ["c2-1"], "x": 0, "y": 0, "direction": 8 },
+        "end": { "tableId": "t3", "columnIds": ["c3-2"], "x": 0, "y": 0, "direction": 4 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "r4": {
+        "id": "r4",
+        "identification": false,
+        "relationshipType": 16,
+        "startRelationshipType": 2,
+        "start": { "tableId": "t3", "columnIds": ["c3-1"], "x": 0, "y": 0, "direction": 2 },
+        "end": { "tableId": "t3", "columnIds": ["c3-3"], "x": 0, "y": 0, "direction": 2 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "r5": {
+        "id": "r5",
+        "identification": false,
+        "relationshipType": 16,
+        "startRelationshipType": 2,
+        "start": { "tableId": "t4", "columnIds": ["c4-1"], "x": 0, "y": 0, "direction": 8 },
+        "end": { "tableId": "t5", "columnIds": ["c5-2"], "x": 0, "y": 0, "direction": 4 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "r6": {
+        "id": "r6",
+        "identification": false,
+        "relationshipType": 16,
+        "startRelationshipType": 2,
+        "start": { "tableId": "t5", "columnIds": ["c5-1"], "x": 0, "y": 0, "direction": 2 },
+        "end": { "tableId": "t5", "columnIds": ["c5-3"], "x": 0, "y": 0, "direction": 2 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "r7": {
+        "id": "r7",
+        "identification": false,
+        "relationshipType": 4,
+        "startRelationshipType": 2,
+        "start": { "tableId": "t4", "columnIds": ["c4-1"], "x": 0, "y": 0, "direction": 8 },
+        "end": { "tableId": "t3", "columnIds": ["c3-4"], "x": 0, "y": 0, "direction": 2 },
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      }
+    },
+    "indexEntities": {
+      "ix1": {
+        "id": "ix1", "name": "ix_t_file_uploaded_at", "tableId": "t1",
+        "indexColumnIds": ["ixc1"], "seqIndexColumnIds": ["ixc1"], "unique": false,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "ix2": {
+        "id": "ix2", "name": "uq_t_file_content_hash", "tableId": "t1",
+        "indexColumnIds": ["ixc2"], "seqIndexColumnIds": ["ixc2"], "unique": true,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "ix3": {
+        "id": "ix3", "name": "ix_t_image_process_file_id", "tableId": "t2",
+        "indexColumnIds": ["ixc3"], "seqIndexColumnIds": ["ixc3"], "unique": false,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "ix4": {
+        "id": "ix4", "name": "ix_t_process_step_process_id", "tableId": "t3",
+        "indexColumnIds": ["ixc4"], "seqIndexColumnIds": ["ixc4"], "unique": false,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      }
+    },
+    "indexColumnEntities": {
+      "ixc1": {
+        "id": "ixc1", "indexId": "ix1", "columnId": "c1-7", "orderType": 2,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "ixc2": {
+        "id": "ixc2", "indexId": "ix2", "columnId": "c1-10", "orderType": 1,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "ixc3": {
+        "id": "ixc3", "indexId": "ix3", "columnId": "c2-3", "orderType": 1,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      },
+      "ixc4": {
+        "id": "ixc4", "indexId": "ix4", "columnId": "c3-2", "orderType": 1,
+        "meta": { "updateAt": 1710900000000, "createAt": 1710900000000 }
+      }
+    },
+    "memoEntities": {}
+  }
+}
