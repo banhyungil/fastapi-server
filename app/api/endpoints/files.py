@@ -403,10 +403,10 @@ async def download_node(
     )
 
 
-# ── Preview (crop 기반 미리보기) ──────────────────────────────────────────────
+# ── Crop (crop 기반 미리보기) ──────────────────────────────────────────────────
 
 
-@router.post("/files/preview/crop", tags=["files"], response_model=PreviewCropResponse)
+@router.post("/files/crop", tags=["files"], response_model=PreviewCropResponse)
 async def preview_crop(
     file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
     node_steps: Annotated[str, Form(alias="nodeSteps", description="해당 노드까지의 기존 steps JSON 배열")],
@@ -444,7 +444,7 @@ async def preview_crop(
     )
 
 
-@router.post("/files/preview/apply", tags=["files"])
+@router.post("/files/crop/apply", tags=["files"])
 async def preview_apply(
     file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
     crop_id: Annotated[str, Form(alias="cropId", description="crop 캐시 ID")],
@@ -482,7 +482,7 @@ async def preview_apply(
     }
 
 
-@router.post("/files/preview/apply-all", tags=["files"])
+@router.post("/files/crop/apply-all", tags=["files"])
 async def preview_apply_all(
     file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
     crop_id: Annotated[str, Form(alias="cropId", description="crop 캐시 ID")],
@@ -522,7 +522,7 @@ async def preview_apply_all(
     ]
 
 
-@router.delete("/files/preview/crop/{file_id}/{crop_id}", tags=["files"])
+@router.delete("/files/crop/{file_id}/{crop_id}", tags=["files"])
 async def preview_delete(file_id: str, crop_id: str) -> dict[str, str]:
     """캐시된 preview crop 파일을 삭제한다."""
     delete_preview_crop(file_id, crop_id)
