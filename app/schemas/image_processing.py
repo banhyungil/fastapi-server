@@ -2,7 +2,7 @@ from typing import Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-from app.schemas.file import PrcType
+from app.schemas.file import FilterType
 
 
 # ── 파라미터 모델 ─────────────────────────────────────────────────────────────
@@ -134,9 +134,9 @@ PARAMS_JSON_SCHEMA: dict[str, Any] = TypeAdapter(AnyFilterParams).json_schema(
     mode="validation", ref_template="#/$defs/{model}"
 )
 
-# ── PrcType → 파라미터 모델 매핑 ─────────────────────────────────────────────
+# ── FilterType → 파라미터 모델 매핑 ─────────────────────────────────────────────
 
-PARAM_MODELS: dict[PrcType, type[BaseModel]] = {
+PARAM_MODELS: dict[FilterType, type[BaseModel]] = {
     # Edge Detection
     "sobel": SobelParams,
     "prewitt": NoParams,

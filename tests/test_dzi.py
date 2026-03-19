@@ -74,7 +74,7 @@ def test_batch_tree_no_dzi_for_small_image(test_image_bytes: bytes):
     import cv2
 
     steps = [
-        {"nodeId": "n1", "prcType": "blur", "parameters": {"kernelSize": 3}, "parentId": None},
+        {"nodeId": "n1", "filterType": "blur", "parameters": {"kernelSize": 3}, "parentId": None},
     ]
     result = process_image_batch_tree(
         image_bytes=test_image_bytes,

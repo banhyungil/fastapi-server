@@ -7,7 +7,7 @@ from typing import Any
 import cv2
 import numpy as np
 
-from app.schemas.file import PrcType
+from app.schemas.file import FilterType
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.cache import CACHE_DIR
 from app.services.operations import OPERATIONS
@@ -47,14 +47,14 @@ def _process_chain_to_node(
         step, parent_image = stack.pop()
 
         current_id: str = step["nodeId"]
-        prc_type: PrcType = step["prcType"]
+        filter_type: FilterType = step["filterType"]
         parameters: dict[str, Any] = step.get("parameters", {})
 
-        op = OPERATIONS.get(prc_type)
+        op = OPERATIONS.get(filter_type)
         if op is None:
-            raise ValueError(f"unsupported prcType: {prc_type}")
+            raise ValueError(f"unsupported filterType: {filter_type}")
 
-        param_cls = PARAM_MODELS[prc_type]
+        param_cls = PARAM_MODELS[filter_type]
         params = param_cls.model_validate(parameters)
         result_image = op(parent_image, params)
 

@@ -19,7 +19,7 @@ from pydantic import ValidationError
 
 from app.schemas.file import (
     TFile, FileListResponse, FileSaveResponse, FileSaveOptions,
-    FileUploadResponse, FileRenameRequest, PrcType,
+    FileUploadResponse, FileRenameRequest, FilterType,
     TreeBatchResponse, TreeNodeResultResponse,
     DziResponse, Viewport, PreviewCropResponse,
 )
@@ -140,7 +140,7 @@ async def get_thumbnail(
 @router.post("/files/save", tags=["files"], response_model=FileSaveResponse)
 async def img_processing_save(
     blob: Annotated[UploadFile, File(description="저장할 처리 완료 이미지")],
-    prc_type: Annotated[PrcType, Form(alias="prcType", description="이미지에 적용된 처리 종류")],
+    filter_type: Annotated[FilterType, Form(alias="filterType", description="이미지에 적용된 처리 종류")],
     prc_ms: Annotated[float, Form(alias="prcMs", description="처리시간")],
 ) -> FileSaveResponse:
     """처리 이미지 저장"""
@@ -164,7 +164,7 @@ async def img_processing_save(
         inserted = insert_file(
             origin_nm=origin_nm, nm=saved_name, path=saved_path,
             mime_type=blob.content_type, size_bytes=len(data),
-            options={"prcType": prc_type, "prcMs": prc_ms},
+            options={"filterType": filter_type, "prcMs": prc_ms},
             width=width, height=height,
         )
     except Exception as exc:
@@ -182,7 +182,7 @@ async def img_processing_save(
         id=inserted["id"], origin_nm=origin_nm, nm=saved_name,
         path=saved_path, mime_type=blob.content_type, size_bytes=len(data),
         uploaded_at=inserted["uploaded_at"],
-        options=FileSaveOptions(prc_type=prc_type),
+        options=FileSaveOptions(filter_type=filter_type),
         width=width, height=height,
     )
 
@@ -253,7 +253,7 @@ async def img_upload(
 @router.post("/files/process", tags=["files"])
 async def file_process(
     file: Annotated[UploadFile, File(description="처리할 원본 이미지 파일")],
-    prc_type: Annotated[PrcType, Form(alias="prcType", description="적용할 이미지 처리 종류")],
+    filter_type: Annotated[FilterType, Form(alias="filterType", description="적용할 이미지 처리 종류")],
     parameters: Annotated[str | None, Form(description="필터별 파라미터 JSON 문자열")] = None,
 ) -> StreamingResponse:
     """단일 필터 이미지 처리"""
@@ -269,7 +269,7 @@ async def file_process(
     try:
         start = time.perf_counter()
         processed_image_bytes = process_image(
-            prc_type=prc_type, image_bytes=uploaded_file_bytes, parameters=params_dict,
+            filter_type=filter_type, image_bytes=uploaded_file_bytes, parameters=params_dict,
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
     except ValidationError as exc:
@@ -312,8 +312,8 @@ async def file_process_batch_tree(
     for i, step in enumerate(steps_list):
         if "nodeId" not in step:
             raise HTTPException(status_code=400, detail=f"steps[{i}] missing required field: nodeId")
-        if "prcType" not in step:
-            raise HTTPException(status_code=400, detail=f"steps[{i}] missing required field: prcType")
+        if "filterType" not in step:
+            raise HTTPException(status_code=400, detail=f"steps[{i}] missing required field: filterType")
 
     image_bytes = file_path.read_bytes()
 
@@ -514,7 +514,7 @@ async def preview_apply_all(
 
     return [
         {
-            "prcType": r.prc_type,
+            "filterType": r.filter_type,
             "imageBase64": base64.b64encode(r.image_bytes).decode(),
             "executionMs": r.execution_ms,
         }

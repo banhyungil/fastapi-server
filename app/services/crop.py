@@ -8,7 +8,7 @@ from uuid import uuid4
 import cv2
 import numpy as np
 
-from app.schemas.file import PrcType
+from app.schemas.file import FilterType
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.cache import CACHE_DIR
 from app.services.operations import OPERATIONS
@@ -116,10 +116,10 @@ def create_preview_crop(
 
 
 class IntermediateResult:
-    __slots__ = ("prc_type", "image_bytes", "execution_ms")
+    __slots__ = ("filter_type", "image_bytes", "execution_ms")
 
-    def __init__(self, prc_type: str, image_bytes: bytes, execution_ms: float = 0) -> None:
-        self.prc_type = prc_type
+    def __init__(self, filter_type: str, image_bytes: bytes, execution_ms: float = 0) -> None:
+        self.filter_type = filter_type
         self.image_bytes = image_bytes
         self.execution_ms = execution_ms
 
@@ -155,14 +155,14 @@ def _apply_steps(image: np.ndarray, temp_steps: list[dict[str, Any]]) -> np.ndar
     """이미지에 temp_steps를 순차 적용한다."""
     result = image.copy()
     for step in temp_steps:
-        prc_type: PrcType = step["prcType"]
+        filter_type: FilterType = step["filterType"]
         parameters: dict[str, Any] = step.get("parameters", {})
 
-        op = OPERATIONS.get(prc_type)
+        op = OPERATIONS.get(filter_type)
         if op is None:
-            raise ValueError(f"unsupported prcType: {prc_type}")
+            raise ValueError(f"unsupported filterType: {filter_type}")
 
-        param_cls = PARAM_MODELS[prc_type]
+        param_cls = PARAM_MODELS[filter_type]
         params = param_cls.model_validate(parameters)
         result = op(result, params)
     return result
@@ -202,14 +202,14 @@ def apply_preview_filter_all(
     result = cropped.copy()
 
     for step in temp_steps:
-        prc_type: PrcType = step["prcType"]
+        filter_type: FilterType = step["filterType"]
         parameters: dict[str, Any] = step.get("parameters", {})
 
-        op = OPERATIONS.get(prc_type)
+        op = OPERATIONS.get(filter_type)
         if op is None:
-            raise ValueError(f"unsupported prcType: {prc_type}")
+            raise ValueError(f"unsupported filterType: {filter_type}")
 
-        param_cls = PARAM_MODELS[prc_type]
+        param_cls = PARAM_MODELS[filter_type]
         params = param_cls.model_validate(parameters)
 
         step_start = _time.perf_counter()
@@ -219,7 +219,7 @@ def apply_preview_filter_all(
         trimmed = _remove_padding(result, cropped, viewport, padding)
         success, encoded = cv2.imencode(".png", trimmed)
         if success:
-            intermediates.append(IntermediateResult(prc_type, encoded.tobytes(), round(step_ms, 2)))
+            intermediates.append(IntermediateResult(filter_type, encoded.tobytes(), round(step_ms, 2)))
 
     return intermediates
 

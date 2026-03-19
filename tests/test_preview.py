@@ -143,7 +143,7 @@ async def test_preview_apply(mock_find, client: AsyncClient):
         crop_id = crop_resp.json()["cropId"]
 
         # 필터 적용
-        temp_steps = [{"prcType": "gaussianBlur", "parameters": {"kernelSize": 5}}]
+        temp_steps = [{"filterType": "gaussianBlur", "parameters": {"kernelSize": 5}}]
         apply_resp = await client.post(
             "/api/files/crop/apply",
             data={
@@ -184,8 +184,8 @@ async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
         crop_id = crop_resp.json()["cropId"]
 
         temp_steps = [
-            {"prcType": "gaussianBlur", "parameters": {"kernelSize": 5}},
-            {"prcType": "canny", "parameters": {"threshold1": 50, "threshold2": 150}},
+            {"filterType": "gaussianBlur", "parameters": {"kernelSize": 5}},
+            {"filterType": "canny", "parameters": {"threshold1": 50, "threshold2": 150}},
         ]
         apply_resp = await client.post(
             "/api/files/crop/apply",

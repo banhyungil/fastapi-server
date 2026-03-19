@@ -5,7 +5,7 @@ from collections.abc import Callable
 import cv2
 import numpy as np
 
-from app.schemas.file import PrcType
+from app.schemas.file import FilterType
 from app.schemas.image_processing import (
     PARAM_MODELS,
     AdaptiveThresholdParams,
@@ -279,7 +279,7 @@ def _op_custom(image: np.ndarray, params: CustomFilterParams) -> np.ndarray:
 
 # ── OPERATIONS 매핑 ───────────────────────────────────────────────────────────
 
-OPERATIONS: dict[PrcType, ImageOperation] = {
+OPERATIONS: dict[FilterType, ImageOperation] = {
     # Edge Detection
     "sobel": _op_sobel,
     "prewitt": _op_prewitt,

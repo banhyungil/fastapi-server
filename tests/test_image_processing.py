@@ -8,8 +8,8 @@ from httpx import AsyncClient
 async def test_batch_tree_processing(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/process/batch-tree — 트리 배치 처리"""
     steps = json.dumps([
-        {"nodeId": "n1", "prcType": "gaussianBlur", "parameters": {"kernelSize": 5}, "parentId": None},
-        {"nodeId": "n2", "prcType": "sobel", "parameters": {"kernelSize": 3, "dx": 1, "dy": 0}, "parentId": "n1"},
+        {"nodeId": "n1", "filterType": "gaussianBlur", "parameters": {"kernelSize": 5}, "parentId": None},
+        {"nodeId": "n2", "filterType": "sobel", "parameters": {"kernelSize": 3, "dx": 1, "dy": 0}, "parentId": "n1"},
     ])
     resp = await client.post(
         "/api/files/process/batch-tree",
@@ -30,9 +30,9 @@ async def test_batch_tree_processing(client: AsyncClient, test_image_bytes: byte
 async def test_batch_tree_branching(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/process/batch-tree — 분기(sibling) 처리"""
     steps = json.dumps([
-        {"nodeId": "root", "prcType": "blur", "parameters": {"kernelSize": 3}, "parentId": None},
-        {"nodeId": "branch-a", "prcType": "sobel", "parameters": {}, "parentId": "root"},
-        {"nodeId": "branch-b", "prcType": "canny", "parameters": {"threshold1": 100, "threshold2": 200}, "parentId": "root"},
+        {"nodeId": "root", "filterType": "blur", "parameters": {"kernelSize": 3}, "parentId": None},
+        {"nodeId": "branch-a", "filterType": "sobel", "parameters": {}, "parentId": "root"},
+        {"nodeId": "branch-b", "filterType": "canny", "parameters": {"threshold1": 100, "threshold2": 200}, "parentId": "root"},
     ])
     resp = await client.post(
         "/api/files/process/batch-tree",
@@ -58,7 +58,7 @@ async def test_batch_tree_empty_steps(client: AsyncClient, test_image_bytes: byt
 
 async def test_batch_tree_missing_node_id(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/process/batch-tree — nodeId 누락"""
-    steps = json.dumps([{"prcType": "blur", "parameters": {}, "parentId": None}])
+    steps = json.dumps([{"filterType": "blur", "parameters": {}, "parentId": None}])
     resp = await client.post(
         "/api/files/process/batch-tree",
         data={"steps": steps, "fileId": "test-missing"},
@@ -113,11 +113,11 @@ async def test_upload_duplicate_image(client: AsyncClient, test_image_bytes: byt
 
 
 async def test_get_filter_params(client: AsyncClient):
-    """GET /api/filters/params/{prc_type} — 필터 파라미터 스키마 조회"""
+    """GET /api/filters/params/{filter_type} — 필터 파라미터 스키마 조회"""
     resp = await client.get("/api/filters/params/gaussianBlur")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["prcType"] == "gaussianBlur"
+    assert data["filterType"] == "gaussianBlur"
     assert "schema" in data
 
 

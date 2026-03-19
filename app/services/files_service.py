@@ -9,7 +9,7 @@ from uuid import UUID
 import cv2
 import numpy as np
 
-from app.schemas.file import PrcType
+from app.schemas.file import FilterType
 from app.schemas.image_processing import PARAM_MODELS
 from app.repos.files_repo import (
     FileRow, FileRowInput, FileRowPage, InsertedFileMeta,
@@ -79,7 +79,7 @@ def rename_file(file_id: str, origin_nm: str) -> FileRow:
 
 
 def process_image(
-    prc_type: PrcType,
+    filter_type: FilterType,
     image_bytes: bytes,
     parameters: dict[str, Any] | None = None,
 ) -> bytes:
@@ -91,11 +91,11 @@ def process_image(
     if image is None:
         raise ValueError("invalid image payload")
 
-    op = OPERATIONS.get(prc_type)
+    op = OPERATIONS.get(filter_type)
     if op is None:
-        raise ValueError(f"unsupported prcType: {prc_type}")
+        raise ValueError(f"unsupported filterType: {filter_type}")
 
-    param_cls = PARAM_MODELS[prc_type]
+    param_cls = PARAM_MODELS[filter_type]
     params = param_cls.model_validate(parameters or {})
     processed = op(image, params)
 
@@ -159,14 +159,14 @@ def process_image_batch_tree(
         step, parent_image = stack.pop()
 
         node_id: str = step["nodeId"]
-        prc_type: PrcType = step["prcType"]
+        filter_type: FilterType = step["filterType"]
         parameters: dict[str, Any] = step.get("parameters", {})
 
-        op = OPERATIONS.get(prc_type)
+        op = OPERATIONS.get(filter_type)
         if op is None:
-            raise ValueError(f"unsupported prcType: {prc_type}")
+            raise ValueError(f"unsupported filterType: {filter_type}")
 
-        param_cls = PARAM_MODELS[prc_type]
+        param_cls = PARAM_MODELS[filter_type]
         params = param_cls.model_validate(parameters)
 
         step_start = time.perf_counter()

@@ -19,7 +19,7 @@ class CamelModel(BaseModel):
     )
 
 
-PrcType = Literal[
+FilterType = Literal[
     # Edge Detection
     "sobel", "prewitt", "laplacian", "canny", "roberts",
     # Blurring
@@ -38,13 +38,13 @@ PrcType = Literal[
 
 
 class ImgProcessingForm(BaseModel):
-    prc_type: PrcType = Field(..., alias="prcType", description="적용할 이미지 처리 종류")
+    filter_type: FilterType = Field(..., alias="filterType", description="적용할 이미지 처리 종류")
     kernel_size: int | None = Field(None, alias="kernelSize", ge=1, description="커널 크기 (홀수). None이면 처리 종류별 기본값 사용")
 
 
 class FileSaveOptions(CamelModel):
     model_config = ConfigDict(extra="allow")  # 정의되지 않은 추가 키 허용
-    prc_type: PrcType | None = Field(None, description="저장 시 적용된 이미지 처리 종류")
+    filter_type: FilterType | None = Field(None, description="저장 시 적용된 이미지 처리 종류")
 
 
 class FileSaveResponse(CamelModel):
