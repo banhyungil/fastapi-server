@@ -1,0 +1,42 @@
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────
+  db:
+    image: postgres:17
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: test1!
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # ── FastAPI 백엔드 ──────────────────────────────────────────
+  backend:
+    image: ghcr.io/banhyungil/fastapi-backend:latest
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql://postgres:test1!@db:5432/postgres
+      DEBUG: "false"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      - db
+
+  # ── Quasar 프론트엔드 (nginx) ───────────────────────────────
+  frontend:
+    image: ghcr.io/banhyungil/quasar-frontend:latest
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  uploads:
