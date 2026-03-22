@@ -11,7 +11,6 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   # ── FastAPI 백엔드 ──────────────────────────────────────────
   backend:
