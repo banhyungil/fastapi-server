@@ -37,61 +37,6 @@
 | frontend | quasar-frontend | 80 | nginx + SPA 정적 파일 + API 프록시 |
 
 
-## 3. Dockerfile 설명
-
-### 백엔드 — `fastapi-server/Dockerfile`
-
-```dockerfile
-FROM python:3.11-slim
-
-# 시스템 의존성
-# - libvips-dev: pyvips 바인딩
-# - libgl1, libglib2.0-0: opencv-python-headless 바인딩
-# - build-essential, pkg-config: pyvips 빌드에 필요
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libvips-dev libgl1 libglib2.0-0 build-essential pkg-config
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-### 프론트엔드 — `quasar-image-processing/Dockerfile`
-
-멀티스테이지 빌드: 최종 이미지에는 Node.js/소스코드 없이 nginx + 정적 파일만 포함
-
-```dockerfile
-# 1단계: Node에서 빌드만 수행
-FROM node:22-alpine AS build
-COPY . .
-RUN npm ci
-RUN npx quasar build        # → dist/spa/ 생성
-
-# 2단계: nginx에 빌드 결과물만 복사
-FROM nginx:alpine
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist/spa /usr/share/nginx/html
-```
-
-
-## 4. 주요 설정 파일
-
-### nginx.conf
-
-```nginx
-server {
-    listen 80;
-    location /     { SPA 서빙 (try_files → index.html) }
-    location /api/ { proxy_pass http://backend:8000 }    # API 프록시
-    location /uploads/ { proxy_pass http://backend:8000 } # 업로드 파일 프록시
-}
-```
-
-- 프론트엔드에서 API 호출 시 **상대 경로** 사용 → nginx가 백엔드로 프록시
-- `client_max_body_size 100M` — 대용량 이미지 업로드 허용
-
 ### API_HOST 환경변수
 
 ```ts
@@ -112,7 +57,6 @@ PostgreSQL 컨테이너는 최초 실행 시 `/docker-entrypoint-initdb.d/` 내 
 volumes:
   - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
 ```
-
 
 ## 5. 실행 방법
 
