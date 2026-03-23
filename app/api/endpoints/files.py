@@ -366,6 +366,7 @@ async def create_dzi(
     file_id: str,
     steps: Annotated[str, Form(description="타겟 노드까지의 처리 단계 JSON 배열")],
     node_id: Annotated[str, Form(alias="nodeId", description="DZI를 생성할 타겟 노드 ID")],
+    crop_id: Annotated[str | None, Form(alias="cropId", description="crop 캐시 ID (지정 시 crop 이미지 기준으로 처리)")] = None,
 ) -> DziResponse:
     """원본 이미지에 steps 체인을 적용하고, 타겟 노드의 DZI 타일(또는 원본 이미지)을 생성한다."""
     file_row = find_file_by_id(file_id)
@@ -380,7 +381,7 @@ async def create_dzi(
     try:
         result = generate_dzi_for_node(
             file_path=file_row["path"], steps=steps_list,
-            file_id=file_id, node_id=node_id,
+            file_id=file_id, node_id=node_id, crop_id=crop_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

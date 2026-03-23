@@ -144,14 +144,24 @@ def generate_dzi_for_node(
     *,
     file_id: str,
     node_id: str,
+    crop_id: str | None = None,
 ) -> DziResult:
-    """원본 이미지를 로드하고, steps 체인을 처리하여 타겟 노드의 DZI(또는 원본 이미지)를 생성한다."""
-    if not steps:
-        target_image = cv2.imread(file_path, cv2.IMREAD_COLOR)
-        if target_image is None:
-            raise ValueError(f"failed to read image: {file_path}")
+    """원본 이미지를 로드하고, steps 체인을 처리하여 타겟 노드의 DZI(또는 원본 이미지)를 생성한다.
+    crop_id가 있으면 crop 캐시 이미지를 소스로 사용한다."""
+    # cropId가 있으면 crop 캐시에서 이미지 로드
+    if crop_id:
+        from app.services.cache import CACHE_DIR
+        crop_path = str(CACHE_DIR / file_id / "preview" / f"{crop_id}.png")
+        source_path = crop_path
     else:
-        target_image = _process_chain_to_node(file_path, steps, node_id)
+        source_path = file_path
+
+    if not steps:
+        target_image = cv2.imread(source_path, cv2.IMREAD_COLOR)
+        if target_image is None:
+            raise ValueError(f"failed to read image: {source_path}")
+    else:
+        target_image = _process_chain_to_node(source_path, steps, node_id)
 
     h, w = target_image.shape[:2]
     if max(h, w) >= TILE_THRESHOLD:
