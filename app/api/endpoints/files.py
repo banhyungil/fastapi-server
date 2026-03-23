@@ -291,15 +291,13 @@ async def file_process_batch_tree(
     file_id: Annotated[str, Form(alias="fileId", description="처리할 원본 이미지 파일 ID")],
     steps: Annotated[str, Form(description="트리 형태 처리 단계 JSON 배열")],
     thumbnail_size: Annotated[int | None, Form(alias="thumbnailSize", ge=50, le=800, description="썸네일 해상도 (px)")] = None,
+    crop_id: Annotated[str | None, Form(alias="cropId", description="crop 캐시 ID (지정 시 crop 이미지 기준으로 처리)")] = None,
+    return_node_ids: Annotated[str | None, Form(alias="returnNodeIds", description="이미지 반환할 노드 ID 목록 (JSON 배열, 미지정 시 전체)")] = None,
 ) -> TreeBatchResponse:
     """트리 구조 배치 이미지 처리."""
     file_row = find_file_by_id(file_id)
     if file_row is None:
         raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
-
-    file_path = Path(file_row["path"])
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="file not found on disk")
 
     try:
         steps_list: list[dict[str, Any]] = json.loads(steps)
@@ -315,11 +313,31 @@ async def file_process_batch_tree(
         if "filterType" not in step:
             raise HTTPException(status_code=400, detail=f"steps[{i}] missing required field: filterType")
 
-    image_bytes = file_path.read_bytes()
+    # cropId가 있으면 crop 캐시에서, 없으면 원본 파일에서 이미지 로드
+    if crop_id:
+        from app.services.cache import CACHE_DIR
+        crop_path = CACHE_DIR / file_id / "preview" / f"{crop_id}.png"
+        if not crop_path.exists():
+            raise HTTPException(status_code=404, detail=f"crop not found: {crop_id}")
+        image_bytes = crop_path.read_bytes()
+    else:
+        file_path = Path(file_row["path"])
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="file not found on disk")
+        image_bytes = file_path.read_bytes()
 
     try:
+        parsed_return_ids: set[str] | None = None
+        if return_node_ids:
+            try:
+                ids_list = json.loads(return_node_ids)
+                parsed_return_ids = set(ids_list) if isinstance(ids_list, list) else None
+            except json.JSONDecodeError:
+                pass
+
         result = process_image_batch_tree(
             image_bytes=image_bytes, steps=steps_list, thumbnail_size=thumbnail_size,
+            return_node_ids=parsed_return_ids,
         )
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.errors()) from exc

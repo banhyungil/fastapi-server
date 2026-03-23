@@ -131,6 +131,7 @@ def process_image_batch_tree(
     steps: list[dict[str, Any]],
     *,
     thumbnail_size: int | None = None,
+    return_node_ids: set[str] | None = None,
 ) -> TreeBatchResult:
     """트리 구조의 steps를 DFS로 순회하며 이미지를 처리한다."""
     if not image_bytes:
@@ -175,8 +176,12 @@ def process_image_batch_tree(
 
         node_images[node_id] = result_image
 
-        thumb_px = thumbnail_size or THUMBNAIL_SIZE
-        image_64_url = encode_base64_thumbnail(result_image, thumb_px)
+        # return_node_ids가 지정된 경우 해당 노드만 이미지 인코딩 (네트워크 절약)
+        if return_node_ids is None or node_id in return_node_ids:
+            thumb_px = thumbnail_size or THUMBNAIL_SIZE
+            image_64_url = encode_base64_thumbnail(result_image, thumb_px)
+        else:
+            image_64_url = ""
 
         node_results.append(TreeNodeResult(
             node_id=node_id, image_url=image_64_url, execution_ms=round(step_ms, 2),
