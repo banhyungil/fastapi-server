@@ -17,7 +17,7 @@ from app.repos.files_repo import (
     find_by_id, delete_by_id, update_origin_nm,
 )
 from app.services.operations import OPERATIONS
-from app.services.thumbnails import delete_file_thumbnail, encode_base64_thumbnail, THUMBNAIL_SIZE
+from app.services.thumbnails import delete_file_thumbnail, encode_base64_thumbnail
 
 
 # ── 파일 CRUD ─────────────────────────────────────────────────────────────────
@@ -110,12 +110,14 @@ def process_image(
 
 
 class TreeNodeResult:
-    __slots__ = ("node_id", "image_url", "execution_ms")
+    __slots__ = ("node_id", "image_url", "execution_ms", "width", "height")
 
-    def __init__(self, node_id: str, image_url: str, execution_ms: float) -> None:
+    def __init__(self, node_id: str, image_url: str, execution_ms: float, width: int = 0, height: int = 0) -> None:
         self.node_id = node_id
         self.image_url = image_url
         self.execution_ms = execution_ms
+        self.width = width
+        self.height = height
 
 
 class TreeBatchResult:
@@ -178,13 +180,15 @@ def process_image_batch_tree(
 
         # return_node_ids가 지정된 경우 해당 노드만 이미지 인코딩 (네트워크 절약)
         if return_node_ids is None or node_id in return_node_ids:
-            thumb_px = thumbnail_size or THUMBNAIL_SIZE
+            thumb_px = thumbnail_size if thumbnail_size is not None else None
             image_64_url = encode_base64_thumbnail(result_image, thumb_px)
         else:
             image_64_url = ""
 
+        img_h, img_w = result_image.shape[:2]
         node_results.append(TreeNodeResult(
             node_id=node_id, image_url=image_64_url, execution_ms=round(step_ms, 2),
+            width=img_w, height=img_h,
         ))
 
         children = children_map.get(node_id, [])

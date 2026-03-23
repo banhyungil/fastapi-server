@@ -62,15 +62,21 @@ def generate_thumbnail_base64(file_path: str, size: int = 200) -> str | None:
     return encode_base64_thumbnail(image, thumbnail_size=size)
 
 
-def encode_base64_thumbnail(image: np.ndarray, thumbnail_size: int = THUMBNAIL_SIZE) -> str:
-    """썸네일을 WebP로 인코딩하여 data URL(base64)을 반환한다."""
-    h, w = image.shape[:2]
-    scale = thumbnail_size / max(h, w)
-    if scale < 1.0:
-        image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+def encode_base64_thumbnail(image: np.ndarray, thumbnail_size: int | None = THUMBNAIL_SIZE) -> str:
+    """WebP로 인코딩하여 data URL(base64)을 반환한다.
+    thumbnail_size가 None이면 리사이즈 없이 무손실 인코딩."""
+    if thumbnail_size is not None:
+        h, w = image.shape[:2]
+        scale = thumbnail_size / max(h, w)
+        if scale < 1.0:
+            image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        # 썸네일: 손실 압축 (품질 80)
+        success, encoded = cv2.imencode(".webp", image, [cv2.IMWRITE_WEBP_QUALITY, 80])
+    else:
+        # 풀해상도: 무손실 압축
+        success, encoded = cv2.imencode(".webp", image, [cv2.IMWRITE_WEBP_QUALITY, 101])
 
-    success, encoded = cv2.imencode(".webp", image, [cv2.IMWRITE_WEBP_QUALITY, 80])
     if not success:
-        raise RuntimeError("failed to encode thumbnail")
+        raise RuntimeError("failed to encode image")
     b64 = base64.b64encode(encoded.tobytes()).decode()
     return f"data:image/webp;base64,{b64}"

@@ -90,6 +90,8 @@ class TreeNodeResultResponse(CamelModel):
     node_id: str = Field(..., description="노드 고유 식별자")
     image_url: str = Field(..., description="처리 결과 이미지 URL (썸네일 base64 data URL)")
     execution_ms: float = Field(..., description="해당 노드 처리 시간 (ms)")
+    width: int = Field(0, description="처리 결과 이미지 가로 해상도 (px)")
+    height: int = Field(0, description="처리 결과 이미지 세로 해상도 (px)")
 
 
 class DziResponse(CamelModel):

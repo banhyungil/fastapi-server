@@ -351,6 +351,7 @@ async def file_process_batch_tree(
         results=[
             TreeNodeResultResponse(
                 node_id=nr.node_id, image_url=nr.image_url, execution_ms=nr.execution_ms,
+                width=nr.width, height=nr.height,
             )
             for nr in result.node_results
         ],
