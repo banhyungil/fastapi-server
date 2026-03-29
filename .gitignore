@@ -10,3 +10,4 @@ venv/
 .idea/
 uploads
 ztest_todo
+onpremise__install/install.bat

@@ -86,65 +86,9 @@ ghcr.io/{GitHub사용자명}/{이미지이름}:{태그}
 ```
 
 
-## 4. 워크플로우 파일 상세
+## 4. 사용 방법
 
-```yaml
-# ── 메타 ──────────────────────────────────────────────────────
-name: Build & Push Backend Image    # GitHub Actions 탭에 표시될 이름
-
-# ── 트리거 ────────────────────────────────────────────────────
-on:
-  push:
-    tags:
-      - 'v*'    # v1.0.0, v2.1.3 등 태그 푸시 시 실행
-
-# ── 환경변수 ──────────────────────────────────────────────────
-env:
-  REGISTRY: ghcr.io
-  IMAGE: ghcr.io/banhyungil/fastapi-backend
-
-# ── 작업 ──────────────────────────────────────────────────────
-jobs:
-  build:
-    runs-on: ubuntu-latest          # GitHub 제공 Ubuntu VM
-
-    permissions:
-      contents: read                # 소스 읽기 권한
-      packages: write               # ghcr.io 푸시 권한
-
-    steps:
-      # 소스코드를 VM에 체크아웃
-      - uses: actions/checkout@v4
-
-      # ghcr.io 로그인
-      # secrets.GITHUB_TOKEN — GitHub이 자동 제공, 별도 설정 불필요
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # 태그에서 버전 추출: refs/tags/v1.0.0 → 1.0.0
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      # Docker 빌드 + 푸시
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.version.outputs.VERSION }}
-            ${{ env.IMAGE }}:latest
-```
-
-
-## 5. 사용 방법
-
-### 5-1. 이미지 빌드 & 푸시 (개발자)
+### 4-1. 이미지 빌드 & 푸시 (개발자)
 
 ```bash
 # 1. 코드 작업 완료 & 푸시
@@ -157,20 +101,20 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-### 5-2. 빌드 상태 확인
+### 4-2. 빌드 상태 확인
 
 GitHub 리포 → **Actions** 탭에서 실행 상태 확인 가능
 - 초록색: 성공
 - 빨간색: 실패 (로그 확인 가능)
 
-### 5-3. 빌드된 이미지 확인
+### 4-3. 빌드된 이미지 확인
 
 GitHub 리포 → **Packages** 탭에서 이미지 목록 확인
 
 
-## 6. 설치 대상에서 이미지 사용
+## 5. 설치 대상에서 이미지 사용
 
-### 6-1. ghcr.io에서 pull (인터넷 가능 시)
+### 5-1. ghcr.io에서 pull (인터넷 가능 시)
 
 ```bash
 # 로그인
@@ -182,7 +126,7 @@ docker compose -f docker-compose.prod.yaml up -d
 
 `docker-compose.prod.yaml`에서 `image: ghcr.io/...`로 참조하므로 자동으로 pull됨.
 
-### 6-2. 오프라인 설치 (인터넷 불가 시)
+### 5-2. 오프라인 설치 (인터넷 불가 시)
 
 ```bash
 # 개발 PC에서 이미지를 파일로 저장
