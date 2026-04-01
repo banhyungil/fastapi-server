@@ -5,6 +5,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
+from app.core.database import pool
 
 
 def _ensure_db() -> None:
@@ -20,7 +21,7 @@ def insert_preset(
     steps: list[dict[str, Any]],
 ) -> dict[str, Any]:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -117,7 +118,7 @@ def _fetch_steps(cur: psycopg.Cursor[Any], preset_id: str) -> list[dict[str, Any
 
 def get_preset_list() -> list[dict[str, Any]]:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -145,7 +146,7 @@ def get_preset_list() -> list[dict[str, Any]]:
 
 def get_preset_by_id(preset_id: str) -> dict[str, Any] | None:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -180,7 +181,7 @@ def update_preset(
     steps: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM t_preset WHERE id = %s::uuid", (preset_id,))
             if cur.fetchone() is None:
@@ -212,7 +213,7 @@ def update_preset(
 
 def delete_preset(preset_id: str) -> bool:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM t_preset WHERE id = %s::uuid RETURNING id",

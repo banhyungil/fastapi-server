@@ -1,7 +1,7 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ENV = os.getenv("ENV", "local")  # 환경변수 ENV로 파일 결정
+ENV = os.getenv("ENV", "")  # 환경변수 ENV로 파일 결정
 
 
 class Settings(BaseSettings):

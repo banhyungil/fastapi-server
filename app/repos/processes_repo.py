@@ -5,6 +5,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
+from app.core.database import pool
 
 
 def _ensure_db() -> None:
@@ -19,7 +20,7 @@ def insert_process(
     steps: list[dict[str, Any]],
 ) -> dict[str, Any]:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -130,7 +131,7 @@ def _fetch_steps(cur: psycopg.Cursor[Any], process_id: str) -> list[dict[str, An
 
 def get_process_list(*, file_id: str | None = None) -> list[dict[str, Any]]:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             query = """
                 SELECT p.id::text, p.nm, p.file_id::text, f.path AS file_path,
@@ -157,7 +158,7 @@ def get_process_list(*, file_id: str | None = None) -> list[dict[str, Any]]:
 
 def get_process_by_id(process_id: str) -> dict[str, Any] | None:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -189,7 +190,7 @@ def update_process(
     steps: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM t_image_process WHERE id = %s::uuid", (process_id,))
             if cur.fetchone() is None:
@@ -227,7 +228,7 @@ def update_process(
 
 def delete_process(process_id: str) -> bool:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM t_image_process WHERE id = %s::uuid RETURNING id",

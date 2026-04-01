@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 *.pyd
 .env
+.env.prod
 .venv/
 venv/
 .pytest_cache/
@@ -11,3 +12,4 @@ venv/
 uploads
 ztest_todo
 onpremise__install/install.bat
+.claude

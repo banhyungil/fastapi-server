@@ -9,6 +9,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
+from app.core.database import pool
 
 class FileRowInput(TypedDict):
     origin_nm: str
@@ -50,10 +51,11 @@ class FileRowPage(TypedDict):
 
 def find_by_id(file_id: str) -> FileRow | None:
     """파일 ID로 파일 메타데이터를 조회한다."""
+
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
 
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
@@ -72,7 +74,7 @@ def find_by_content_hash(content_hash: str) -> FileRow | None:
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
 
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
@@ -92,7 +94,7 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
 
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
@@ -123,7 +125,7 @@ def delete_by_id(file_id: str) -> FileRow | None:
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
 
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
@@ -143,7 +145,7 @@ def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
 
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
@@ -211,7 +213,7 @@ def get_file_list(
     """
     params.append(limit + 1)
 
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(cast(LiteralString, query), params)
             rows = cursor.fetchall()

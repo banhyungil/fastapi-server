@@ -9,18 +9,30 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.database import run_migrations, pool
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
 from app.schemas.image_processing import PARAM_MODELS
 from app.services.cache import cleanup_cache
+from pathlib import Path
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# uploads 폴더 생성
+if not Path("uploads").exists():
+    Path("uploads").mkdir(exist_ok=True)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # startup
+    # alembic DB 마이그레이션
+    run_migrations()
+    # db pool 생성
+    pool.open()
+
+    logger.info("database migration completed")
     cleanup_cache()
     logger.info("cache cleanup completed on startup")
 
@@ -30,9 +42,11 @@ async def lifespan(_app: FastAPI):
             cleanup_cache()
 
     task = asyncio.create_task(_periodic_cleanup())
-    yield
+
     # shutdown
+    yield
     task.cancel()
+    pool.close()
 
 
 app = FastAPI(
@@ -52,8 +66,6 @@ app.add_middleware(
 )
 
 register_exception_handlers(app)
-
-
 
 @app.get("/", tags=["root"])
 def read_root() -> dict[str, str]:
@@ -93,6 +105,11 @@ def custom_openapi():
         schemas[model_cls.__name__] = model_cls.model_json_schema(by_alias=True)
     app.openapi_schema = schema
     return schema
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
 app.openapi = custom_openapi

@@ -1,9 +1,11 @@
-from typing import Any
+from typing import Any, LiteralString
 
 import psycopg
+from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from app.core.config import settings
+from app.core.database import pool
 
 
 def _ensure_db() -> None:
@@ -19,7 +21,7 @@ def insert_custom_filter(
     params: list[dict[str, Any]],
 ) -> dict[str, Any]:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -40,7 +42,7 @@ def insert_custom_filter(
 
 def get_custom_filter_list() -> list[dict[str, Any]]:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -55,7 +57,7 @@ def get_custom_filter_list() -> list[dict[str, Any]]:
 
 def get_custom_filter_by_id(filter_id: str) -> dict[str, Any] | None:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -79,7 +81,7 @@ def update_custom_filter(
     params: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id FROM t_custom_filter WHERE id = %s::uuid",
@@ -87,8 +89,8 @@ def update_custom_filter(
             )
             if cur.fetchone() is None:
                 return None
-
-            sets: list[str] = ["updated_at = now()"]
+            
+            sets: list[LiteralString] = ["updated_at = now()"]
             values: list[Any] = []
 
             if nm is not None:
@@ -106,8 +108,12 @@ def update_custom_filter(
                 values.append(Jsonb(params))
 
             values.append(filter_id)
+            # 타입 안정성을 위해 sql.SQL 래퍼 사용
+            # 값이 아닌 SQL 구조를 동적으로 지정할려면 sql.SQL을 사용해야 함.
             cur.execute(
-                f"UPDATE t_custom_filter SET {', '.join(sets)} WHERE id = %s::uuid",
+                sql.SQL("UPDATE t_custom_filter SET {} WHERE id = %s::uuid").format(
+                    sql.SQL(', ').join(sql.SQL(s) for s in sets)
+                ),
                 values,
             )
         conn.commit()
@@ -117,7 +123,7 @@ def update_custom_filter(
 
 def delete_custom_filter(filter_id: str) -> bool:
     _ensure_db()
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM t_custom_filter WHERE id = %s::uuid RETURNING id",
