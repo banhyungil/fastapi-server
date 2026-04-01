@@ -4,8 +4,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.file import FilterType
-from app.schemas.image_processing import PARAM_MODELS
+from app.schemas.files_schema import FilterType
+from app.schemas.image_processing_schema import PARAM_MODELS
 
 router = APIRouter()
 

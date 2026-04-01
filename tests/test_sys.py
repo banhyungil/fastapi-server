@@ -1,6 +1,6 @@
 from httpx import AsyncClient
 from pathlib import Path
-from app.schemas.file import FileListResponse
+from app.schemas.files_schema import FileListResponse
 from app.services.thumbnails import save_file_thumbnail
 from typing import cast
 import pytest
@@ -27,7 +27,7 @@ async def test_create_humbnail(client: AsyncClient):
         
         item_image = item_path.read_bytes()
 
-        save_file_thumbnail(item.id, item_image)
+        save_file_thumbnail(str(item.id), item_image)
 
 
     # 없으면 썸네일 이미지 생성후 파일 저장

@@ -16,7 +16,7 @@ def _mock_page(items=None):
 
 def _mock_file_item(**overrides):
     base = {
-        "id": "test-uuid",
+        "id": 1,
         "origin_nm": "photo.jpg",
         "nm": "abc123.jpg",
         "path": "uploads/2026-03-09/abc123.jpg",
@@ -72,9 +72,8 @@ async def test_get_files_limit_too_large(client: AsyncClient):
     assert resp.status_code == 422
 
 async def test_execute_find_by_id():
-    import uuid
     from app.repos.files_repo import find_by_id
 
-    result = find_by_id(str(uuid.uuid4()))
+    result = find_by_id(-1)
     
     assert result is None

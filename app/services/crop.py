@@ -8,8 +8,8 @@ from uuid import uuid4
 import cv2
 import numpy as np
 
-from app.schemas.file import FilterType
-from app.schemas.image_processing import PARAM_MODELS
+from app.schemas.files_schema import FilterType
+from app.schemas.image_processing_schema import PARAM_MODELS
 from app.services.cache import CACHE_DIR
 from app.services.operations import OPERATIONS
 from app.services.dzi import _process_chain_to_node

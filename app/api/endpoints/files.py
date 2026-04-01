@@ -9,7 +9,7 @@ from io import BytesIO
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -17,7 +17,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
-from app.schemas.file import (
+from app.schemas.files_schema import (
     TFile, FileListResponse, FileSaveResponse, FileSaveOptions,
     FileUploadResponse, FileRenameRequest, FilterType,
     TreeBatchResponse, TreeNodeResultResponse,
@@ -56,7 +56,7 @@ async def get_saved_images(
     min_size: Annotated[int | None, Query(alias="minSize", ge=0, description="최소 파일 크기 (bytes)")] = None,
     max_size: Annotated[int | None, Query(alias="maxSize", ge=0, description="최대 파일 크기 (bytes)")] = None,
     cursor_uploaded_at: Annotated[datetime | None, Query(alias="cursorUploadedAt", description="커서 기준 업로드 시각")] = None,
-    cursor_id: Annotated[UUID | None, Query(alias="cursorId", description="커서 기준 파일 ID")] = None,
+    cursor_id: Annotated[int | None, Query(alias="cursorId", description="커서 기준 파일 ID")] = None,
 ) -> FileListResponse:
     """처리 이미지 조회"""
     if (cursor_uploaded_at is None) != (cursor_id is None):
@@ -82,7 +82,7 @@ async def get_saved_images(
 
 
 @router.delete("/files/{file_id}", tags=["files"])
-async def delete_image(file_id: str) -> dict[str, str]:
+async def delete_image(file_id: int) -> dict[str, str]:
     """이미지 파일 삭제 (DB 메타데이터 + 디스크 파일)"""
     try:
         delete_file(file_id)
@@ -92,7 +92,7 @@ async def delete_image(file_id: str) -> dict[str, str]:
 
 
 @router.patch("/files/{file_id}", tags=["files"], response_model=TFile)
-async def rename_image(file_id: str, body: FileRenameRequest) -> TFile:
+async def rename_image(file_id: int, body: FileRenameRequest) -> TFile:
     """이미지 파일명(originNm) 수정"""
     try:
         updated = rename_file(file_id, body.origin_nm)
@@ -103,7 +103,7 @@ async def rename_image(file_id: str, body: FileRenameRequest) -> TFile:
 
 @router.get("/files/thumbnail/{file_id}", tags=["files"])
 async def get_thumbnail(
-    file_id: str,
+    file_id: int,
     size: Annotated[int, Query(ge=32, le=400, description="썸네일 최대 변 크기 (px)")] = 200,
 ) -> StreamingResponse:
     """파일 ID에 해당하는 이미지를 지정 크기로 축소하여 반환한다."""
@@ -288,7 +288,7 @@ async def file_process(
 
 @router.post("/files/process/batch-tree", tags=["files"], response_model=TreeBatchResponse)
 async def file_process_batch_tree(
-    file_id: Annotated[str, Form(alias="fileId", description="처리할 원본 이미지 파일 ID")],
+    file_id: Annotated[int, Form(alias="fileId", description="처리할 원본 이미지 파일 ID")],
     steps: Annotated[str, Form(description="트리 형태 처리 단계 JSON 배열")],
     thumbnail_size: Annotated[int | None, Form(alias="thumbnailSize", ge=50, le=800, description="썸네일 해상도 (px)")] = None,
     crop_id: Annotated[str | None, Form(alias="cropId", description="crop 캐시 ID (지정 시 crop 이미지 기준으로 처리)")] = None,
@@ -316,7 +316,7 @@ async def file_process_batch_tree(
     # cropId가 있으면 crop 캐시에서, 없으면 원본 파일에서 이미지 로드
     if crop_id:
         from app.services.cache import CACHE_DIR
-        crop_path = CACHE_DIR / file_id / "preview" / f"{crop_id}.png"
+        crop_path = CACHE_DIR / str(file_id) / "preview" / f"{crop_id}.png"
         if not crop_path.exists():
             raise HTTPException(status_code=404, detail=f"crop not found: {crop_id}")
         image_bytes = crop_path.read_bytes()
@@ -363,7 +363,7 @@ async def file_process_batch_tree(
 
 @router.post("/files/dzi/{file_id}", tags=["files"], response_model=DziResponse)
 async def create_dzi(
-    file_id: str,
+    file_id: int,
     steps: Annotated[str, Form(description="타겟 노드까지의 처리 단계 JSON 배열")],
     node_id: Annotated[str, Form(alias="nodeId", description="DZI를 생성할 타겟 노드 ID")],
     crop_id: Annotated[str | None, Form(alias="cropId", description="crop 캐시 ID (지정 시 crop 이미지 기준으로 처리)")] = None,
@@ -381,7 +381,7 @@ async def create_dzi(
     try:
         result = generate_dzi_for_node(
             file_path=file_row["path"], steps=steps_list,
-            file_id=file_id, node_id=node_id, crop_id=crop_id,
+            file_id=str(file_id), node_id=node_id, crop_id=crop_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -393,7 +393,7 @@ async def create_dzi(
 
 @router.post("/files/download/{file_id}", tags=["files"])
 async def download_node(
-    file_id: str,
+    file_id: int,
     steps: Annotated[str, Form(description="타겟 노드까지의 처리 단계 JSON 배열")],
     node_id: Annotated[str, Form(alias="nodeId", description="다운로드할 타겟 노드 ID")],
 ) -> StreamingResponse:
@@ -428,7 +428,7 @@ async def download_node(
 
 @router.post("/files/crop", tags=["files"], response_model=PreviewCropResponse)
 async def preview_crop(
-    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
+    file_id: Annotated[int, Form(alias="fileId", description="원본 파일 ID")],
     node_steps: Annotated[str, Form(alias="nodeSteps", description="해당 노드까지의 기존 steps JSON 배열")],
     node_id: Annotated[str, Form(alias="nodeId", description="대상 노드 ID")],
     viewport: Annotated[str, Form(description="crop 영역 JSON { x, y, w, h } (px)")],
@@ -453,7 +453,7 @@ async def preview_crop(
         result = create_preview_crop(
             file_path=file_row["path"], node_steps=steps_list,
             node_id=node_id, viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
-            file_id=file_id, padding=padding,
+            file_id=str(file_id), padding=padding,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -466,7 +466,7 @@ async def preview_crop(
 
 @router.post("/files/crop/apply", tags=["files"])
 async def preview_apply(
-    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
+    file_id: Annotated[int, Form(alias="fileId", description="원본 파일 ID")],
     crop_id: Annotated[str, Form(alias="cropId", description="crop 캐시 ID")],
     temp_steps: Annotated[str, Form(alias="tempSteps", description="임시 필터 steps JSON 배열")],
     viewport: Annotated[str, Form(description="crop 시 사용한 viewport JSON")],
@@ -486,7 +486,7 @@ async def preview_apply(
     try:
         start = time.perf_counter()
         result_bytes = apply_preview_filter(
-            file_id=file_id, crop_id=crop_id, temp_steps=steps_list,
+            file_id=str(file_id), crop_id=crop_id, temp_steps=steps_list,
             viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
             padding=padding,
         )
@@ -504,7 +504,7 @@ async def preview_apply(
 
 @router.post("/files/crop/apply-all", tags=["files"])
 async def preview_apply_all(
-    file_id: Annotated[str, Form(alias="fileId", description="원본 파일 ID")],
+    file_id: Annotated[int, Form(alias="fileId", description="원본 파일 ID")],
     crop_id: Annotated[str, Form(alias="cropId", description="crop 캐시 ID")],
     temp_steps: Annotated[str, Form(alias="tempSteps", description="임시 필터 steps JSON 배열")],
     viewport: Annotated[str, Form(description="crop 시 사용한 viewport JSON")],
@@ -523,7 +523,7 @@ async def preview_apply_all(
 
     try:
         results = apply_preview_filter_all(
-            file_id=file_id, crop_id=crop_id, temp_steps=steps_list,
+            file_id=str(file_id), crop_id=crop_id, temp_steps=steps_list,
             viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
             padding=padding,
         )
@@ -543,7 +543,7 @@ async def preview_apply_all(
 
 
 @router.delete("/files/crop/{file_id}/{crop_id}", tags=["files"])
-async def preview_delete(file_id: str, crop_id: str) -> dict[str, str]:
+async def preview_delete(file_id: int, crop_id: str) -> dict[str, str]:
     """캐시된 preview crop 파일을 삭제한다."""
-    delete_preview_crop(file_id, crop_id)
+    delete_preview_crop(str(file_id), crop_id)
     return {"detail": "deleted"}

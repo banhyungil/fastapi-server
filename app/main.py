@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.database import run_migrations, pool
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
-from app.schemas.image_processing import PARAM_MODELS
+from app.schemas.image_processing_schema import PARAM_MODELS
 from app.services.cache import cleanup_cache
 from pathlib import Path
 

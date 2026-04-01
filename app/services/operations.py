@@ -5,8 +5,8 @@ from collections.abc import Callable
 import cv2
 import numpy as np
 
-from app.schemas.file import FilterType
-from app.schemas.image_processing import (
+from app.schemas.files_schema import FilterType
+from app.schemas.image_processing_schema import (
     PARAM_MODELS,
     AdaptiveThresholdParams,
     BilateralFilterParams,

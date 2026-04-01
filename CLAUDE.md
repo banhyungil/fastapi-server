@@ -8,16 +8,16 @@
 
 - [docs/architecture.md]
 
+## DB 구조
+
+- alembic/versions 하위에서 구조 확인
+
 ## Plan 관리 규칙
 
 - `docs/plans/` 하위에 방안 관리
 - 파일명 형식: `파일명_YYMMDD.md`
 - 파일명은 대문자로
 - 사용자가 프로젝트 내에서 검토 후 승인할 때까지 구현 시작하지 말 것
-
-## 타입 검증
-
-- 코드 수정 후 `npx pyright`를 실행하여 0 errors를 확인할 것
 
 ## 학습 노트 규칙
 
@@ -26,5 +26,6 @@
 
 ## 수정 규칙
 
+- `npx pyright`를 실행하여 0 errors를 확인할 것
 - 수정 후에는 docs/updates 하위에 업데이트 내용을 자연어로 간략하게 정리한다.
 - `제목_YYMMDD:HH` 으로 헤더를 설정하고 하위에 관련 수정내용을 정리한다.

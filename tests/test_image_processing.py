@@ -9,7 +9,7 @@ from httpx import AsyncClient
 
 
 MOCK_FILE_ROW = {
-    "id": "test-file-id",
+    "id": 1,
     "origin_nm": "test.png",
     "nm": "test.png",
     "path": "uploads/test.png",
@@ -42,7 +42,7 @@ async def test_batch_tree_processing(client: AsyncClient, test_image_bytes: byte
     with _patch_file_read(test_image_bytes):
         resp = await client.post(
             "/api/files/process/batch-tree",
-            data={"steps": steps, "fileId": "test-file-id"},
+            data={"steps": steps, "fileId": 1},
         )
     assert resp.status_code == 200
     data = resp.json()
@@ -63,7 +63,7 @@ async def test_batch_tree_branching(client: AsyncClient, test_image_bytes: bytes
     with _patch_file_read(test_image_bytes):
         resp = await client.post(
             "/api/files/process/batch-tree",
-            data={"steps": steps, "fileId": "test-branch"},
+            data={"steps": steps, "fileId": 2},
         )
     assert resp.status_code == 200
     data = resp.json()
@@ -77,7 +77,7 @@ async def test_batch_tree_empty_steps(client: AsyncClient, test_image_bytes: byt
     with _patch_file_read(test_image_bytes):
         resp = await client.post(
             "/api/files/process/batch-tree",
-            data={"steps": "[]", "fileId": "test-empty"},
+            data={"steps": "[]", "fileId": 3},
         )
     assert resp.status_code == 400
 
@@ -88,7 +88,7 @@ async def test_batch_tree_missing_node_id(client: AsyncClient, test_image_bytes:
     with _patch_file_read(test_image_bytes):
         resp = await client.post(
             "/api/files/process/batch-tree",
-            data={"steps": steps, "fileId": "test-missing"},
+            data={"steps": steps, "fileId": 4},
         )
     assert resp.status_code == 400
     assert "nodeId" in resp.json()["detail"]
@@ -97,7 +97,7 @@ async def test_batch_tree_missing_node_id(client: AsyncClient, test_image_bytes:
 async def test_upload_image(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/upload — 이미지 업로드 (DB mock)"""
     mock_return = {
-        "id": "test-uuid",
+        "id": 99,
         "uploaded_at": "2026-03-09T12:00:00",
     }
     with (
@@ -110,7 +110,7 @@ async def test_upload_image(client: AsyncClient, test_image_bytes: bytes):
         )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["id"] == "test-uuid"
+    assert data["id"] == 99
     assert data["mimeType"] == "image/png"
     assert data["originNm"] == "test.png"
 
@@ -118,7 +118,7 @@ async def test_upload_image(client: AsyncClient, test_image_bytes: bytes):
 async def test_upload_duplicate_image(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/upload — 중복 파일 업로드 시 기존 레코드 반환"""
     existing = {
-        "id": "existing-uuid",
+        "id": 100,
         "origin_nm": "original.png",
         "nm": "saved.png",
         "path": "uploads/2026-03-09/saved.png",
@@ -135,7 +135,7 @@ async def test_upload_duplicate_image(client: AsyncClient, test_image_bytes: byt
         )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["id"] == "existing-uuid"
+    assert data["id"] == 100
 
 
 async def test_get_filter_params(client: AsyncClient):

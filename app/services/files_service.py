@@ -4,13 +4,12 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Unpack
-from uuid import UUID
 
 import cv2
 import numpy as np
 
-from app.schemas.file import FilterType
-from app.schemas.image_processing import PARAM_MODELS
+from app.schemas.files_schema import FilterType
+from app.schemas.image_processing_schema import PARAM_MODELS
 from app.repos.files_repo import (
     FileRow, FileRowInput, FileRowPage, InsertedFileMeta,
     insert_file_row, get_file_list, find_by_content_hash,
@@ -27,7 +26,7 @@ def insert_file(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
     return insert_file_row(**kwargs)
 
 
-def find_file_by_id(file_id: str) -> FileRow | None:
+def find_file_by_id(file_id: int) -> FileRow | None:
     return find_by_id(file_id)
 
 
@@ -43,7 +42,7 @@ def list_files(
     min_size: int | None = None,
     max_size: int | None = None,
     cursor_uploaded_at: datetime | None = None,
-    cursor_id: UUID | None = None,
+    cursor_id: int | None = None,
 ) -> FileRowPage:
     return get_file_list(
         limit=limit, mime_type=mime_type, search=search,
@@ -52,7 +51,7 @@ def list_files(
     )
 
 
-def delete_file(file_id: str) -> FileRow:
+def delete_file(file_id: int) -> FileRow:
     """파일 메타데이터 삭제 + 디스크 파일 삭제"""
     deleted = delete_by_id(file_id)
     if deleted is None:
@@ -67,7 +66,7 @@ def delete_file(file_id: str) -> FileRow:
     return deleted
 
 
-def rename_file(file_id: str, origin_nm: str) -> FileRow:
+def rename_file(file_id: int, origin_nm: str) -> FileRow:
     """파일명(origin_nm) 수정"""
     updated = update_origin_nm(file_id, origin_nm)
     if updated is None:

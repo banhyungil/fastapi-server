@@ -23,7 +23,7 @@ def _create_test_image(width: int = 200, height: int = 150) -> str:
 
 def _mock_file_row(path: str) -> dict:
     return {
-        "id": "test-file-id",
+        "id": 1,
         "origin_nm": "test.png",
         "nm": "test.png",
         "path": path,
@@ -39,7 +39,7 @@ def _mock_file_row(path: str) -> dict:
 def _cleanup():
     if TEMP_DIR.exists():
         shutil.rmtree(TEMP_DIR, ignore_errors=True)
-    cache_dir = Path("uploads/cache/test-file-id/preview")
+    cache_dir = Path("uploads/cache/1/preview")
     if cache_dir.exists():
         shutil.rmtree(cache_dir, ignore_errors=True)
 
@@ -57,7 +57,7 @@ async def test_preview_crop(mock_find, client: AsyncClient):
         resp = await client.post(
             "/api/files/crop",
             data={
-                "fileId": "test-file-id",
+                "fileId": 1,
                 "nodeSteps": "[]",
                 "nodeId": "source",
                 "viewport": json.dumps({"x": 10, "y": 10, "w": 100, "h": 80}),
@@ -72,7 +72,7 @@ async def test_preview_crop(mock_find, client: AsyncClient):
         assert data["height"] == 80
 
         # 캐시 파일 존재 확인
-        cache_dir = Path("uploads/cache/test-file-id/preview")
+        cache_dir = Path("uploads/cache/1/preview")
         assert cache_dir.exists()
         crop_files = list(cache_dir.glob(f"{data['cropId']}*"))
         assert len(crop_files) == 2  # crop + node crop
@@ -87,7 +87,7 @@ async def test_preview_crop_file_not_found(mock_find, client: AsyncClient):
     resp = await client.post(
         "/api/files/crop",
         data={
-            "fileId": "nonexistent",
+            "fileId": 999,
             "nodeSteps": "[]",
             "nodeId": "source",
             "viewport": json.dumps({"x": 0, "y": 0, "w": 100, "h": 100}),
@@ -106,7 +106,7 @@ async def test_preview_crop_invalid_viewport(mock_find, client: AsyncClient):
         resp = await client.post(
             "/api/files/crop",
             data={
-                "fileId": "test-file-id",
+                "fileId": 1,
                 "nodeSteps": "[]",
                 "nodeId": "source",
                 "viewport": "invalid-json",
@@ -132,7 +132,7 @@ async def test_preview_apply(mock_find, client: AsyncClient):
         crop_resp = await client.post(
             "/api/files/crop",
             data={
-                "fileId": "test-file-id",
+                "fileId": 1,
                 "nodeSteps": "[]",
                 "nodeId": "source",
                 "viewport": json.dumps(viewport),
@@ -147,7 +147,7 @@ async def test_preview_apply(mock_find, client: AsyncClient):
         apply_resp = await client.post(
             "/api/files/crop/apply",
             data={
-                "fileId": "test-file-id",
+                "fileId": 1,
                 "cropId": crop_id,
                 "tempSteps": json.dumps(temp_steps),
                 "viewport": json.dumps(viewport),
@@ -174,7 +174,7 @@ async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
         crop_resp = await client.post(
             "/api/files/crop",
             data={
-                "fileId": "test-file-id",
+                "fileId": 1,
                 "nodeSteps": "[]",
                 "nodeId": "source",
                 "viewport": json.dumps(viewport),
@@ -190,7 +190,7 @@ async def test_preview_apply_multiple_steps(mock_find, client: AsyncClient):
         apply_resp = await client.post(
             "/api/files/crop/apply",
             data={
-                "fileId": "test-file-id",
+                "fileId": 1,
                 "cropId": crop_id,
                 "tempSteps": json.dumps(temp_steps),
                 "viewport": json.dumps(viewport),
@@ -209,7 +209,7 @@ async def test_preview_apply_invalid_crop_id(client: AsyncClient):
     resp = await client.post(
         "/api/files/crop/apply",
         data={
-            "fileId": "test-file-id",
+            "fileId": 1,
             "cropId": "nonexistent",
             "tempSteps": "[]",
             "viewport": json.dumps({"x": 0, "y": 0, "w": 100, "h": 100}),
@@ -232,7 +232,7 @@ async def test_preview_delete(mock_find, client: AsyncClient):
         crop_resp = await client.post(
             "/api/files/crop",
             data={
-                "fileId": "test-file-id",
+                "fileId": 1,
                 "nodeSteps": "[]",
                 "nodeId": "source",
                 "viewport": json.dumps({"x": 0, "y": 0, "w": 100, "h": 100}),
@@ -242,13 +242,13 @@ async def test_preview_delete(mock_find, client: AsyncClient):
 
         # 삭제
         del_resp = await client.delete(
-            f"/api/files/crop/test-file-id/{crop_id}"
+            f"/api/files/crop/1/{crop_id}"
         )
         assert del_resp.status_code == 200
         assert del_resp.json()["detail"] == "deleted"
 
         # 캐시 파일 삭제 확인
-        cache_dir = Path("uploads/cache/test-file-id/preview")
+        cache_dir = Path("uploads/cache/1/preview")
         crop_files = list(cache_dir.glob(f"{crop_id}*"))
         assert len(crop_files) == 0
     finally:

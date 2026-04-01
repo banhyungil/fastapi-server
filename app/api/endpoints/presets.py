@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.preset import (
+from app.schemas.presets_schema import (
     PresetCreate,
     PresetUpdate,
     PresetResponse,
@@ -30,7 +30,7 @@ async def get_presets() -> PresetListResponse:
 
 
 @router.get("/presets/{preset_id}", tags=["preset"], response_model=PresetResponse)
-async def get_preset_detail(preset_id: str) -> PresetResponse:
+async def get_preset_detail(preset_id: int) -> PresetResponse:
     """프리셋 상세 조회"""
     result = get_preset(preset_id)
     if result is None:
@@ -52,7 +52,7 @@ async def create_preset_endpoint(body: PresetCreate) -> PresetResponse:
 
 
 @router.put("/presets/{preset_id}", tags=["preset"], response_model=PresetResponse)
-async def update_preset_endpoint(preset_id: str, body: PresetUpdate) -> PresetResponse:
+async def update_preset_endpoint(preset_id: int, body: PresetUpdate) -> PresetResponse:
     """프리셋 수정"""
     steps = [step.model_dump() for step in body.steps] if body.steps is not None else None
     result = modify_preset(
@@ -67,7 +67,7 @@ async def update_preset_endpoint(preset_id: str, body: PresetUpdate) -> PresetRe
 
 
 @router.delete("/presets/{preset_id}", tags=["preset"], status_code=204)
-async def delete_preset_endpoint(preset_id: str) -> None:
+async def delete_preset_endpoint(preset_id: int) -> None:
     """프리셋 삭제"""
     if not remove_preset(preset_id):
         raise HTTPException(status_code=404, detail="preset not found")

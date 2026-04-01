@@ -23,12 +23,12 @@ def list_presets() -> list[dict[str, Any]]:
     return get_preset_list()
 
 
-def get_preset(preset_id: str) -> dict[str, Any] | None:
+def get_preset(preset_id: int) -> dict[str, Any] | None:
     return get_preset_by_id(preset_id)
 
 
 def modify_preset(
-    preset_id: str,
+    preset_id: int,
     *,
     nm: str | None = None,
     description: str | None = None,
@@ -37,5 +37,5 @@ def modify_preset(
     return update_preset(preset_id, nm=nm, description=description, steps=steps)
 
 
-def remove_preset(preset_id: str) -> bool:
+def remove_preset(preset_id: int) -> bool:
     return delete_preset(preset_id)

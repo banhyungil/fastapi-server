@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas.process import (
+from app.schemas.processes_schema import (
     ProcessCreate,
     ProcessUpdate,
     ProcessResponse,
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/processes", tags=["process"], response_model=ProcessListResponse)
 async def get_processes(
-    file_id: Annotated[str | None, Query(alias="fileId", description="원본 파일 ID로 필터")] = None,
+    file_id: Annotated[int | None, Query(alias="fileId", description="원본 파일 ID로 필터")] = None,
 ) -> ProcessListResponse:
     """처리연산 목록 조회"""
     items = list_processes(file_id=file_id)
@@ -33,7 +33,7 @@ async def get_processes(
 
 
 @router.get("/processes/{process_id}", tags=["process"], response_model=ProcessResponse)
-async def get_process_detail(process_id: str) -> ProcessResponse:
+async def get_process_detail(process_id: int) -> ProcessResponse:
     """처리연산 상세 조회"""
     result = get_process(process_id)
     if result is None:
@@ -54,7 +54,7 @@ async def create_process_endpoint(body: ProcessCreate) -> ProcessResponse:
 
 
 @router.put("/processes/{process_id}", tags=["process"], response_model=ProcessResponse)
-async def update_process_endpoint(process_id: str, body: ProcessUpdate) -> ProcessResponse:
+async def update_process_endpoint(process_id: int, body: ProcessUpdate) -> ProcessResponse:
     """처리연산 수정"""
     steps = [step.model_dump() for step in body.steps] if body.steps is not None else None
     result = modify_process(
@@ -71,7 +71,7 @@ async def update_process_endpoint(process_id: str, body: ProcessUpdate) -> Proce
 
 
 @router.delete("/processes/{process_id}", tags=["process"], status_code=204)
-async def delete_process_endpoint(process_id: str) -> None:
+async def delete_process_endpoint(process_id: int) -> None:
     """처리연산 삭제"""
     if not remove_process(process_id):
         raise HTTPException(status_code=404, detail="process not found")

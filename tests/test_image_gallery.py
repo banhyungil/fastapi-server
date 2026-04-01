@@ -24,7 +24,7 @@ def _mock_page(items=None):
 
 def _mock_file_row(**overrides):
     base = {
-        "id": "aaaa-bbbb-cccc-dddd",
+        "id": 1,
         "origin_nm": "sunset.jpg",
         "nm": "abc123.jpg",
         "path": "uploads/2026-03-13/abc123.jpg",
@@ -107,17 +107,17 @@ async def test_search_no_params(mock_list, _mock_thumb, client: AsyncClient):
 async def test_delete_success(mock_delete, client: AsyncClient):
     """DELETE /api/files/{id} — 정상 삭제"""
     mock_delete.return_value = _mock_file_row()
-    resp = await client.delete("/api/files/aaaa-bbbb-cccc-dddd")
+    resp = await client.delete("/api/files/1")
     assert resp.status_code == 200
     assert resp.json()["detail"] == "deleted"
-    mock_delete.assert_called_once_with("aaaa-bbbb-cccc-dddd")
+    mock_delete.assert_called_once_with(1)
 
 
 @patch("app.api.endpoints.files.delete_file")
 async def test_delete_not_found(mock_delete, client: AsyncClient):
     """DELETE /api/files/{id} — 존재하지 않는 파일"""
-    mock_delete.side_effect = ValueError("file not found: unknown-id")
-    resp = await client.delete("/api/files/unknown-id")
+    mock_delete.side_effect = ValueError("file not found: 999")
+    resp = await client.delete("/api/files/999")
     assert resp.status_code == 404
 
 
@@ -129,20 +129,20 @@ async def test_rename_success(mock_rename, client: AsyncClient):
     """PATCH /api/files/{id} — 정상 파일명 수정"""
     mock_rename.return_value = _mock_file_row(origin_nm="new_name.jpg")
     resp = await client.patch(
-        "/api/files/aaaa-bbbb-cccc-dddd",
+        "/api/files/1",
         json={"originNm": "new_name.jpg"},
     )
     assert resp.status_code == 200
     assert resp.json()["originNm"] == "new_name.jpg"
-    mock_rename.assert_called_once_with("aaaa-bbbb-cccc-dddd", "new_name.jpg")
+    mock_rename.assert_called_once_with(1, "new_name.jpg")
 
 
 @patch("app.api.endpoints.files.rename_file")
 async def test_rename_not_found(mock_rename, client: AsyncClient):
     """PATCH /api/files/{id} — 존재하지 않는 파일"""
-    mock_rename.side_effect = ValueError("file not found: unknown-id")
+    mock_rename.side_effect = ValueError("file not found: 999")
     resp = await client.patch(
-        "/api/files/unknown-id",
+        "/api/files/999",
         json={"originNm": "new_name.jpg"},
     )
     assert resp.status_code == 404
@@ -151,7 +151,7 @@ async def test_rename_not_found(mock_rename, client: AsyncClient):
 async def test_rename_empty_name(client: AsyncClient):
     """PATCH /api/files/{id} — 빈 파일명 유효성 검증"""
     resp = await client.patch(
-        "/api/files/aaaa-bbbb-cccc-dddd",
+        "/api/files/1",
         json={"originNm": ""},
     )
     assert resp.status_code == 422

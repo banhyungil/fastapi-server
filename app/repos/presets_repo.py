@@ -27,7 +27,7 @@ def insert_preset(
                 """
                 INSERT INTO t_preset (nm, description, is_system)
                 VALUES (%s, %s, %s)
-                RETURNING id::text, nm, description, is_system, created_at, updated_at
+                RETURNING id, nm, description, is_system, created_at, updated_at
                 """,
                 (nm, description, is_system),
             )
@@ -52,7 +52,7 @@ def insert_preset(
 
 def _insert_steps(
     cur: psycopg.Cursor[Any],
-    preset_id: str,
+    preset_id: int,
     steps: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """트리 구조 노드 삽입. client_id/parent_client_id 기반으로 부모를 매핑한다."""
@@ -67,8 +67,8 @@ def _insert_steps(
         cur.execute(
             """
             INSERT INTO t_preset_step (preset_id, parent_id, step_order, algorithm_nm, parameters)
-            VALUES (%s::uuid, %s::uuid, %s, %s, %s)
-            RETURNING id::text, parent_id::text, step_order, algorithm_nm, parameters
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, parent_id, step_order, algorithm_nm, parameters
             """,
             (
                 preset_id,
@@ -94,12 +94,12 @@ def _insert_steps(
     return result
 
 
-def _fetch_steps(cur: psycopg.Cursor[Any], preset_id: str) -> list[dict[str, Any]]:
+def _fetch_steps(cur: psycopg.Cursor[Any], preset_id: int) -> list[dict[str, Any]]:
     cur.execute(
         """
-        SELECT id::text, parent_id::text, step_order, algorithm_nm, parameters
+        SELECT id, parent_id, step_order, algorithm_nm, parameters
         FROM t_preset_step
-        WHERE preset_id = %s::uuid
+        WHERE preset_id = %s
         ORDER BY step_order
         """,
         (preset_id,),
@@ -122,7 +122,7 @@ def get_preset_list() -> list[dict[str, Any]]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id::text, nm, description, is_system, created_at, updated_at
+                SELECT id, nm, description, is_system, created_at, updated_at
                 FROM t_preset
                 ORDER BY created_at DESC
                 """
@@ -144,15 +144,15 @@ def get_preset_list() -> list[dict[str, Any]]:
     return result
 
 
-def get_preset_by_id(preset_id: str) -> dict[str, Any] | None:
+def get_preset_by_id(preset_id: int) -> dict[str, Any] | None:
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id::text, nm, description, is_system, created_at, updated_at
+                SELECT id, nm, description, is_system, created_at, updated_at
                 FROM t_preset
-                WHERE id = %s::uuid
+                WHERE id = %s
                 """,
                 (preset_id,),
             )
@@ -174,7 +174,7 @@ def get_preset_by_id(preset_id: str) -> dict[str, Any] | None:
 
 
 def update_preset(
-    preset_id: str,
+    preset_id: int,
     *,
     nm: str | None = None,
     description: str | None = None,
@@ -183,7 +183,7 @@ def update_preset(
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM t_preset WHERE id = %s::uuid", (preset_id,))
+            cur.execute("SELECT id FROM t_preset WHERE id = %s", (preset_id,))
             if cur.fetchone() is None:
                 return None
 
@@ -197,13 +197,13 @@ def update_preset(
                 params.append(description)
 
             params.append(preset_id)
-            query = sql.SQL("UPDATE t_preset SET {} WHERE id = %s::uuid").format(
+            query = sql.SQL("UPDATE t_preset SET {} WHERE id = %s").format(
                 sql.SQL(", ").join(updates),
             )
             cur.execute(query, params)
 
             if steps is not None:
-                cur.execute("DELETE FROM t_preset_step WHERE preset_id = %s::uuid", (preset_id,))
+                cur.execute("DELETE FROM t_preset_step WHERE preset_id = %s", (preset_id,))
                 _insert_steps(cur, preset_id, steps)
 
         conn.commit()
@@ -211,12 +211,12 @@ def update_preset(
     return get_preset_by_id(preset_id)
 
 
-def delete_preset(preset_id: str) -> bool:
+def delete_preset(preset_id: int) -> bool:
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM t_preset WHERE id = %s::uuid RETURNING id",
+                "DELETE FROM t_preset WHERE id = %s RETURNING id",
                 (preset_id,),
             )
             deleted = cur.fetchone() is not None

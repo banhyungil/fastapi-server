@@ -27,7 +27,7 @@ def insert_custom_filter(
                 """
                 INSERT INTO t_custom_filter (nm, description, code, params)
                 VALUES (%s, %s, %s, %s)
-                RETURNING id::text, nm, description, code, params,
+                RETURNING id, nm, description, code, params,
                           version, created_at, updated_at
                 """,
                 (nm, description, code, Jsonb(params)),
@@ -46,7 +46,7 @@ def get_custom_filter_list() -> list[dict[str, Any]]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id::text, nm, description, code, params,
+                SELECT id, nm, description, code, params,
                        version, created_at, updated_at
                 FROM t_custom_filter
                 ORDER BY created_at DESC
@@ -55,16 +55,16 @@ def get_custom_filter_list() -> list[dict[str, Any]]:
             return [_row_to_dict(row) for row in cur.fetchall()]
 
 
-def get_custom_filter_by_id(filter_id: str) -> dict[str, Any] | None:
+def get_custom_filter_by_id(filter_id: int) -> dict[str, Any] | None:
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id::text, nm, description, code, params,
+                SELECT id, nm, description, code, params,
                        version, created_at, updated_at
                 FROM t_custom_filter
-                WHERE id = %s::uuid
+                WHERE id = %s
                 """,
                 (filter_id,),
             )
@@ -73,7 +73,7 @@ def get_custom_filter_by_id(filter_id: str) -> dict[str, Any] | None:
 
 
 def update_custom_filter(
-    filter_id: str,
+    filter_id: int,
     *,
     nm: str | None = None,
     description: str | None = None,
@@ -84,7 +84,7 @@ def update_custom_filter(
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id FROM t_custom_filter WHERE id = %s::uuid",
+                "SELECT id FROM t_custom_filter WHERE id = %s",
                 (filter_id,),
             )
             if cur.fetchone() is None:
@@ -111,7 +111,7 @@ def update_custom_filter(
             # 타입 안정성을 위해 sql.SQL 래퍼 사용
             # 값이 아닌 SQL 구조를 동적으로 지정할려면 sql.SQL을 사용해야 함.
             cur.execute(
-                sql.SQL("UPDATE t_custom_filter SET {} WHERE id = %s::uuid").format(
+                sql.SQL("UPDATE t_custom_filter SET {} WHERE id = %s").format(
                     sql.SQL(', ').join(sql.SQL(s) for s in sets)
                 ),
                 values,
@@ -121,12 +121,12 @@ def update_custom_filter(
     return get_custom_filter_by_id(filter_id)
 
 
-def delete_custom_filter(filter_id: str) -> bool:
+def delete_custom_filter(filter_id: int) -> bool:
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM t_custom_filter WHERE id = %s::uuid RETURNING id",
+                "DELETE FROM t_custom_filter WHERE id = %s RETURNING id",
                 (filter_id,),
             )
             deleted = cur.fetchone() is not None

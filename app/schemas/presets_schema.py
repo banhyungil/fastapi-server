@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import Field
 
-from app.schemas.file import CamelModel
+from app.schemas.files_schema import CamelModel
 
 
 class PresetStepBase(CamelModel):
@@ -18,8 +18,8 @@ class PresetStepCreate(PresetStepBase):
 
 
 class PresetStepResponse(PresetStepBase):
-    id: str = Field(..., description="프리셋 단계 ID")
-    parent_id: str | None = Field(None, description="부모 노드 ID")
+    id: int = Field(..., description="프리셋 단계 ID")
+    parent_id: int | None = Field(None, description="부모 노드 ID")
 
 
 class PresetCreate(CamelModel):
@@ -36,7 +36,7 @@ class PresetUpdate(CamelModel):
 
 
 class PresetResponse(CamelModel):
-    id: str = Field(..., description="프리셋 ID")
+    id: int = Field(..., description="프리셋 ID")
     nm: str = Field(..., description="프리셋 명칭")
     description: str | None = Field(None, description="프리셋 설명")
     is_system: bool = Field(..., description="시스템 기본 제공 여부")

@@ -13,7 +13,7 @@ SAMPLE_CODE_WITH_PARAMS = (
     "result = cv2.GaussianBlur(gray, (ksize, ksize), 0)"
 )
 SAMPLE_FILTER = {
-    "id": "cf-test-uuid",
+    "id": 1,
     "nm": "grayscale",
     "description": "그레이스케일 변환",
     "code": SAMPLE_CODE,
@@ -44,7 +44,7 @@ async def test_create_custom_filter(client: AsyncClient):
         )
     assert resp.status_code == 201
     data = resp.json()
-    assert data["id"] == "cf-test-uuid"
+    assert data["id"] == 1
     assert data["nm"] == "grayscale"
     assert data["code"] == SAMPLE_CODE
     assert data["version"] == 1
@@ -86,7 +86,7 @@ async def test_get_custom_filter_detail(client: AsyncClient):
         "app.api.endpoints.custom_filters.get_custom_filter",
         return_value=SAMPLE_FILTER,
     ):
-        resp = await client.get("/api/custom-filters/cf-test-uuid")
+        resp = await client.get("/api/custom-filters/1")
     assert resp.status_code == 200
     data = resp.json()
     assert data["code"] == SAMPLE_CODE
@@ -99,7 +99,7 @@ async def test_get_custom_filter_not_found(client: AsyncClient):
         "app.api.endpoints.custom_filters.get_custom_filter",
         return_value=None,
     ):
-        resp = await client.get("/api/custom-filters/nonexistent")
+        resp = await client.get("/api/custom-filters/999")
     assert resp.status_code == 404
 
 
@@ -114,7 +114,7 @@ async def test_update_custom_filter(client: AsyncClient):
         return_value=updated,
     ):
         resp = await client.put(
-            "/api/custom-filters/cf-test-uuid",
+            "/api/custom-filters/1",
             json={"nm": "gray-v2", "code": SAMPLE_CODE_WITH_PARAMS},
         )
     assert resp.status_code == 200
@@ -130,7 +130,7 @@ async def test_update_custom_filter_not_found(client: AsyncClient):
         return_value=None,
     ):
         resp = await client.put(
-            "/api/custom-filters/nonexistent",
+            "/api/custom-filters/999",
             json={"nm": "new-name"},
         )
     assert resp.status_code == 404
@@ -145,7 +145,7 @@ async def test_delete_custom_filter(client: AsyncClient):
         "app.api.endpoints.custom_filters.remove_custom_filter",
         return_value=True,
     ):
-        resp = await client.delete("/api/custom-filters/cf-test-uuid")
+        resp = await client.delete("/api/custom-filters/1")
     assert resp.status_code == 204
 
 
@@ -155,7 +155,7 @@ async def test_delete_custom_filter_not_found(client: AsyncClient):
         "app.api.endpoints.custom_filters.remove_custom_filter",
         return_value=False,
     ):
-        resp = await client.delete("/api/custom-filters/nonexistent")
+        resp = await client.delete("/api/custom-filters/999")
     assert resp.status_code == 404
 
 
@@ -169,7 +169,7 @@ async def test_test_custom_filter(client: AsyncClient, test_image_bytes: bytes):
         return_value=SAMPLE_FILTER,
     ):
         resp = await client.post(
-            "/api/custom-filters/cf-test-uuid/test",
+            "/api/custom-filters/1/test",
             data={"parameters": json.dumps({})},
             files={"image": ("test.png", test_image_bytes, "image/png")},
         )
@@ -186,7 +186,7 @@ async def test_test_custom_filter_with_params(client: AsyncClient, test_image_by
         return_value=filter_with_params,
     ):
         resp = await client.post(
-            "/api/custom-filters/cf-test-uuid/test",
+            "/api/custom-filters/1/test",
             data={"parameters": json.dumps({"ksize": 5})},
             files={"image": ("test.png", test_image_bytes, "image/png")},
         )
@@ -201,7 +201,7 @@ async def test_test_custom_filter_not_found(client: AsyncClient, test_image_byte
         return_value=None,
     ):
         resp = await client.post(
-            "/api/custom-filters/nonexistent/test",
+            "/api/custom-filters/999/test",
             data={"parameters": "{}"},
             files={"image": ("test.png", test_image_bytes, "image/png")},
         )

@@ -11,6 +11,7 @@
 
 - 리소스 기반 경로 — 동사(image-processing) → 명사(/files)
 - 라우터-서비스-repo 1:1 매칭 — 파일명 통일 (files.py → files_service.py → files_repo.py)
+- Schemas 1:1 매칭 (files_schema.py), resource가 아닌 경우도 schema postfix 사용
 - 복수형 통일 — 리소스는 복수형 (files, filters, presets, processes)
 - 역할별 세그먼트 — /files/crop, /files/process, /files/dzi 처럼 동작을 하위 경로로
 - 프론트-백엔드 네이밍 일치 — 백엔드 /files/crop → 프론트 filesApi.createCrop

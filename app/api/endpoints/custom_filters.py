@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 import io
 
-from app.schemas.custom_filter import (
+from app.schemas.custom_filters_schema import (
     CustomFilterCreate,
     CustomFilterListResponse,
     CustomFilterResponse,
@@ -42,7 +42,7 @@ async def get_custom_filters() -> CustomFilterListResponse:
     tags=["custom-filter"],
     response_model=CustomFilterResponse,
 )
-async def get_custom_filter_detail(filter_id: str) -> CustomFilterResponse:
+async def get_custom_filter_detail(filter_id: int) -> CustomFilterResponse:
     """커스텀 필터 상세 조회"""
     result = get_custom_filter(filter_id)
     if result is None:
@@ -75,7 +75,7 @@ async def create_custom_filter_endpoint(
     response_model=CustomFilterResponse,
 )
 async def update_custom_filter_endpoint(
-    filter_id: str,
+    filter_id: int,
     body: CustomFilterUpdate,
 ) -> CustomFilterResponse:
     """커스텀 필터 수정"""
@@ -96,7 +96,7 @@ async def update_custom_filter_endpoint(
     tags=["custom-filter"],
     status_code=204,
 )
-async def delete_custom_filter_endpoint(filter_id: str) -> None:
+async def delete_custom_filter_endpoint(filter_id: int) -> None:
     """커스텀 필터 삭제"""
     if not remove_custom_filter(filter_id):
         raise HTTPException(status_code=404, detail="custom filter not found")
@@ -107,7 +107,7 @@ async def delete_custom_filter_endpoint(filter_id: str) -> None:
     tags=["custom-filter"],
 )
 async def test_custom_filter_endpoint(
-    filter_id: str,
+    filter_id: int,
     image: UploadFile = File(...),
     parameters: str = Form("{}"),
 ) -> StreamingResponse:

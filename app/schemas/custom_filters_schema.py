@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.file import CamelModel
+from app.schemas.files_schema import CamelModel
 
 
 class SelectOption(BaseModel):
@@ -40,7 +40,7 @@ class CustomFilterUpdate(CamelModel):
 
 
 class CustomFilterResponse(CamelModel):
-    id: str = Field(..., description="커스텀 필터 ID (UUID)")
+    id: int = Field(..., description="커스텀 필터 ID")
     nm: str = Field(..., description="커스텀 필터 이름")
     description: str = Field("", description="필터 설명")
     code: str = Field(..., description="Python 필터 코드")

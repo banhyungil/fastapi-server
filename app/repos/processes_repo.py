@@ -16,7 +16,7 @@ def _ensure_db() -> None:
 def insert_process(
     *,
     nm: str,
-    file_id: str,
+    file_id: int,
     steps: list[dict[str, Any]],
 ) -> dict[str, Any]:
     _ensure_db()
@@ -25,10 +25,10 @@ def insert_process(
             cur.execute(
                 """
                 INSERT INTO t_image_process (nm, file_id)
-                VALUES (%s, %s::uuid)
-                RETURNING id::text, nm, file_id::text,
+                VALUES (%s, %s)
+                RETURNING id, nm, file_id,
                           (SELECT path FROM t_file WHERE id = file_id) AS file_path,
-                          final_file_id::text,
+                          final_file_id,
                           is_latest, total_execution_ms, created_at, updated_at
                 """,
                 (nm, file_id),
@@ -46,7 +46,7 @@ def insert_process(
 
 def _insert_steps(
     cur: psycopg.Cursor[Any],
-    process_id: str,
+    process_id: int,
     steps: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """트리 구조 노드 삽입. client_id/parent_client_id 기반으로 부모를 매핑한다."""
@@ -61,8 +61,8 @@ def _insert_steps(
             """
             INSERT INTO t_process_step
                 (process_id, parent_id, preset_id, step_order, algorithm_nm, parameters, is_enabled)
-            VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s)
-            RETURNING id::text, process_id::text, parent_id::text, preset_id::text, step_order,
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, process_id, parent_id, preset_id, step_order,
                       algorithm_nm, parameters, is_enabled, created_at, execution_ms
             """,
             (
@@ -115,13 +115,13 @@ def _row_to_dict(row: tuple[Any, ...], steps: list[dict[str, Any]]) -> dict[str,
     }
 
 
-def _fetch_steps(cur: psycopg.Cursor[Any], process_id: str) -> list[dict[str, Any]]:
+def _fetch_steps(cur: psycopg.Cursor[Any], process_id: int) -> list[dict[str, Any]]:
     cur.execute(
         """
-        SELECT id::text, process_id::text, parent_id::text, preset_id::text, step_order,
+        SELECT id, process_id, parent_id, preset_id, step_order,
                algorithm_nm, parameters, is_enabled, created_at, execution_ms
         FROM t_process_step
-        WHERE process_id = %s::uuid
+        WHERE process_id = %s
         ORDER BY step_order
         """,
         (process_id,),
@@ -129,20 +129,20 @@ def _fetch_steps(cur: psycopg.Cursor[Any], process_id: str) -> list[dict[str, An
     return [_step_row_to_dict(s) for s in cur.fetchall()]
 
 
-def get_process_list(*, file_id: str | None = None) -> list[dict[str, Any]]:
+def get_process_list(*, file_id: int | None = None) -> list[dict[str, Any]]:
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
             query = """
-                SELECT p.id::text, p.nm, p.file_id::text, f.path AS file_path,
-                       p.final_file_id::text,
+                SELECT p.id, p.nm, p.file_id, f.path AS file_path,
+                       p.final_file_id,
                        p.is_latest, p.total_execution_ms, p.created_at, p.updated_at
                 FROM t_image_process p
                 LEFT JOIN t_file f ON f.id = p.file_id
             """
             params: list[Any] = []
             if file_id is not None:
-                query += " WHERE p.file_id = %s::uuid"
+                query += " WHERE p.file_id = %s"
                 params.append(file_id)
             query += " ORDER BY p.created_at DESC"
 
@@ -156,18 +156,18 @@ def get_process_list(*, file_id: str | None = None) -> list[dict[str, Any]]:
     return result
 
 
-def get_process_by_id(process_id: str) -> dict[str, Any] | None:
+def get_process_by_id(process_id: int) -> dict[str, Any] | None:
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT p.id::text, p.nm, p.file_id::text, f.path AS file_path,
-                       p.final_file_id::text,
+                SELECT p.id, p.nm, p.file_id, f.path AS file_path,
+                       p.final_file_id,
                        p.is_latest, p.total_execution_ms, p.created_at, p.updated_at
                 FROM t_image_process p
                 LEFT JOIN t_file f ON f.id = p.file_id
-                WHERE p.id = %s::uuid
+                WHERE p.id = %s
                 """,
                 (process_id,),
             )
@@ -181,10 +181,10 @@ def get_process_by_id(process_id: str) -> dict[str, Any] | None:
 
 
 def update_process(
-    process_id: str,
+    process_id: int,
     *,
     nm: str | None = None,
-    final_file_id: str | None = None,
+    final_file_id: int | None = None,
     is_latest: bool | None = None,
     total_execution_ms: int | None = None,
     steps: list[dict[str, Any]] | None = None,
@@ -192,7 +192,7 @@ def update_process(
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM t_image_process WHERE id = %s::uuid", (process_id,))
+            cur.execute("SELECT id FROM t_image_process WHERE id = %s", (process_id,))
             if cur.fetchone() is None:
                 return None
 
@@ -202,7 +202,7 @@ def update_process(
                 updates.append(sql.SQL("nm = %s"))
                 params.append(nm)
             if final_file_id is not None:
-                updates.append(sql.SQL("final_file_id = %s::uuid"))
+                updates.append(sql.SQL("final_file_id = %s"))
                 params.append(final_file_id)
             if is_latest is not None:
                 updates.append(sql.SQL("is_latest = %s"))
@@ -212,13 +212,13 @@ def update_process(
                 params.append(total_execution_ms)
 
             params.append(process_id)
-            query = sql.SQL("UPDATE t_image_process SET {} WHERE id = %s::uuid").format(
+            query = sql.SQL("UPDATE t_image_process SET {} WHERE id = %s").format(
                 sql.SQL(", ").join(updates),
             )
             cur.execute(query, params)
 
             if steps is not None:
-                cur.execute("DELETE FROM t_process_step WHERE process_id = %s::uuid", (process_id,))
+                cur.execute("DELETE FROM t_process_step WHERE process_id = %s", (process_id,))
                 _insert_steps(cur, process_id, steps)
 
         conn.commit()
@@ -226,12 +226,12 @@ def update_process(
     return get_process_by_id(process_id)
 
 
-def delete_process(process_id: str) -> bool:
+def delete_process(process_id: int) -> bool:
     _ensure_db()
     with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM t_image_process WHERE id = %s::uuid RETURNING id",
+                "DELETE FROM t_image_process WHERE id = %s RETURNING id",
                 (process_id,),
             )
             deleted = cur.fetchone() is not None

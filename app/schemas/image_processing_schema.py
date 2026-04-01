@@ -2,7 +2,7 @@ from typing import Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-from app.schemas.file import FilterType
+from app.schemas.files_schema import FilterType
 
 
 # ── 파라미터 모델 ─────────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ class MorphologicalParams(BaseModel):
 class CustomFilterParams(BaseModel):
     """커스텀 필터 파라미터."""
     model_config = ConfigDict(populate_by_name=True)
-    filter_id: str = Field(..., alias="filterId", description="커스텀 필터 ID (UUID)")
+    filter_id: int = Field(..., alias="filterId", description="커스텀 필터 ID")
     parameters: dict[str, Any] = Field(default_factory=dict, description="사용자 정의 파라미터")
 
 

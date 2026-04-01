@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import TypedDict, NotRequired, Any, Unpack
-from uuid import UUID
 
 from typing import cast, LiteralString
 
@@ -19,18 +18,18 @@ class FileRowInput(TypedDict):
     size_bytes: int
     options: dict[str, Any]
     content_hash: NotRequired[str | None]
-    uploader_id: NotRequired[UUID | None]
+    uploader_id: NotRequired[int | None]
     width: NotRequired[int | None]
     height: NotRequired[int | None]
 
 
 class InsertedFileMeta(TypedDict):
-    id: str
+    id: int
     uploaded_at: datetime
 
 
 class FileRow(TypedDict):
-    id: str
+    id: int
     origin_nm: str
     nm: str
     path: str
@@ -46,10 +45,10 @@ class FileRowPage(TypedDict):
     items: list[FileRow]
     has_more: bool
     next_cursor_uploaded_at: datetime | None
-    next_cursor_id: str | None
+    next_cursor_id: int | None
 
 
-def find_by_id(file_id: str) -> FileRow | None:
+def find_by_id(file_id: int) -> FileRow | None:
     """파일 ID로 파일 메타데이터를 조회한다."""
 
     if not settings.database_url:
@@ -59,8 +58,8 @@ def find_by_id(file_id: str) -> FileRow | None:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
-                FROM t_file WHERE id = %s::uuid LIMIT 1
+                SELECT id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                FROM t_file WHERE id = %s LIMIT 1
                 """,
                 (file_id,),
             )
@@ -78,7 +77,7 @@ def find_by_content_hash(content_hash: str) -> FileRow | None:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                SELECT id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
                 FROM t_file WHERE content_hash = %s LIMIT 1
                 """,
                 (content_hash,),
@@ -100,7 +99,7 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
                 """
                 INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options, content_hash, width, height)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id::text, uploaded_at
+                RETURNING id,uploaded_at
                 """,
                 (
                     kwargs["origin_nm"], kwargs["nm"], kwargs["path"],
@@ -120,7 +119,7 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
     return cast(InsertedFileMeta, row)
 
 
-def delete_by_id(file_id: str) -> FileRow | None:
+def delete_by_id(file_id: int) -> FileRow | None:
     """파일 메타데이터를 삭제하고 삭제된 행을 반환한다."""
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
@@ -129,8 +128,8 @@ def delete_by_id(file_id: str) -> FileRow | None:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                DELETE FROM t_file WHERE id = %s::uuid
-                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                DELETE FROM t_file WHERE id = %s
+                RETURNING id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
                 """,
                 (file_id,),
             )
@@ -140,7 +139,7 @@ def delete_by_id(file_id: str) -> FileRow | None:
     return cast(FileRow, row) if row else None
 
 
-def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
+def update_origin_nm(file_id: int, origin_nm: str) -> FileRow | None:
     """파일의 origin_nm(원본 파일명)을 수정한다."""
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
@@ -149,8 +148,8 @@ def update_origin_nm(file_id: str, origin_nm: str) -> FileRow | None:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                UPDATE t_file SET origin_nm = %s WHERE id = %s::uuid
-                RETURNING id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                UPDATE t_file SET origin_nm = %s WHERE id = %s
+                RETURNING id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
                 """,
                 (origin_nm, file_id),
             )
@@ -168,13 +167,13 @@ def get_file_list(
     min_size: int | None = None,
     max_size: int | None = None,
     cursor_uploaded_at: datetime | None = None,
-    cursor_id: UUID | None = None,
+    cursor_id: int | None = None,
 ) -> FileRowPage:
     if not settings.database_url:
         raise RuntimeError("database_url is not configured")
 
     query = """
-        SELECT id::text, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+        SELECT id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
         FROM t_file
     """
     params: list[object] = []

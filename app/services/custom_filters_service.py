@@ -94,12 +94,12 @@ def list_custom_filters() -> list[dict[str, Any]]:
     return get_custom_filter_list()
 
 
-def get_custom_filter(filter_id: str) -> dict[str, Any] | None:
+def get_custom_filter(filter_id: int) -> dict[str, Any] | None:
     return get_custom_filter_by_id(filter_id)
 
 
 def modify_custom_filter(
-    filter_id: str,
+    filter_id: int,
     *,
     nm: str | None = None,
     description: str | None = None,
@@ -111,7 +111,7 @@ def modify_custom_filter(
     )
 
 
-def remove_custom_filter(filter_id: str) -> bool:
+def remove_custom_filter(filter_id: int) -> bool:
     return delete_custom_filter(filter_id)
 
 

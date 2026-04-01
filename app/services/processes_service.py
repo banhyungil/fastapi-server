@@ -12,25 +12,25 @@ from app.repos.processes_repo import (
 def create_process(
     *,
     nm: str,
-    file_id: str,
+    file_id: int,
     steps: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return insert_process(nm=nm, file_id=file_id, steps=steps)
 
 
-def list_processes(*, file_id: str | None = None) -> list[dict[str, Any]]:
+def list_processes(*, file_id: int | None = None) -> list[dict[str, Any]]:
     return get_process_list(file_id=file_id)
 
 
-def get_process(process_id: str) -> dict[str, Any] | None:
+def get_process(process_id: int) -> dict[str, Any] | None:
     return get_process_by_id(process_id)
 
 
 def modify_process(
-    process_id: str,
+    process_id: int,
     *,
     nm: str | None = None,
-    final_file_id: str | None = None,
+    final_file_id: int | None = None,
     is_latest: bool | None = None,
     total_execution_ms: int | None = None,
     steps: list[dict[str, Any]] | None = None,
@@ -45,5 +45,5 @@ def modify_process(
     )
 
 
-def remove_process(process_id: str) -> bool:
+def remove_process(process_id: int) -> bool:
     return delete_process(process_id)
