@@ -20,11 +20,11 @@ next(g)  # "3단계" 출력, StopIteration 발생
 
 ### 일반 함수 vs 제너레이터 함수
 
-| | 일반 함수 | 제너레이터 함수 |
-|---|---|---|
-| 호출 시 | 즉시 실행 | 제너레이터 객체만 반환 |
-| 값 반환 | `return` 한 번 | `yield` 여러 번 가능 |
-| 실행 상태 | 유지 안 됨 | `yield` 지점에서 유지 |
+|           | 일반 함수      | 제너레이터 함수        |
+| --------- | -------------- | ---------------------- |
+| 호출 시   | 즉시 실행      | 제너레이터 객체만 반환 |
+| 값 반환   | `return` 한 번 | `yield` 여러 번 가능   |
+| 실행 상태 | 유지 안 됨     | `yield` 지점에서 유지  |
 
 ### pytest fixture에서의 활용
 
@@ -80,13 +80,13 @@ Java처럼 강제는 아니고 **관례**로 동작한다.
 
 ### 주요 매직 메서드
 
-| 메서드 | 용도 |
-|---|---|
-| `__init__` | 초기화 |
-| `__str__` | `print()` 시 출력 (Java의 `toString`) |
-| `__repr__` | 디버깅용 문자열 표현 |
-| `__eq__` | `==` 비교 |
-| `__len__` | `len()` 호출 시 |
+| 메서드     | 용도                                  |
+| ---------- | ------------------------------------- |
+| `__init__` | 초기화                                |
+| `__str__`  | `print()` 시 출력 (Java의 `toString`) |
+| `__repr__` | 디버깅용 문자열 표현                  |
+| `__eq__`   | `==` 비교                             |
+| `__len__`  | `len()` 호출 시                       |
 
 ### 클래스 변수 vs 인스턴스 변수
 
@@ -119,3 +119,41 @@ class MyClass:
 - 인터페이스 없음 → 덕 타이핑 / Protocol (타입힌트)
 - 다중 상속 가능
 - `self`를 항상 명시
+
+## 문법
+
+### with
+
+```python
+# file을 open하고 close하는 방식
+# try ~ catch로 구현
+try:
+    f = open(...)
+    ...
+finally:
+    f.close()
+
+# 실제로는 file 인스턴스 내부는 try catch 구현이 되어 있음
+#
+with open("log.txt") as f:
+    print(f.readline())
+
+
+# 실제 with 절 동작 방식
+## __enther__, __exit__ 함수를 설정하면  된다.
+
+obj = something
+value = obj.__enter__()
+try:
+    # with 블록
+finally:
+    obj.__exit__()
+
+class MyContext:
+    def __enter__(self):
+        print("enter")
+        return "value"
+
+    def __exit__(self, exc_type, exc, tb):
+        print("exit")
+```

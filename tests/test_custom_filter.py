@@ -17,7 +17,7 @@ SAMPLE_FILTER = {
     "nm": "grayscale",
     "description": "그레이스케일 변환",
     "code": SAMPLE_CODE,
-    "params": {},
+    "params": [],
     "version": 1,
     "created_at": "2026-03-11T00:00:00+00:00",
     "updated_at": "2026-03-11T00:00:00+00:00",
@@ -30,7 +30,7 @@ SAMPLE_FILTER = {
 async def test_create_custom_filter(client: AsyncClient):
     """POST /api/custom-filters — 커스텀 필터 생성"""
     with patch(
-        "app.api.endpoints.custom_filter.create_custom_filter",
+        "app.api.endpoints.custom_filters.create_custom_filter",
         return_value=SAMPLE_FILTER,
     ):
         resp = await client.post(
@@ -39,7 +39,7 @@ async def test_create_custom_filter(client: AsyncClient):
                 "nm": "grayscale",
                 "description": "그레이스케일 변환",
                 "code": SAMPLE_CODE,
-                "params": {},
+                "params": [],
             },
         )
     assert resp.status_code == 201
@@ -56,7 +56,7 @@ async def test_create_custom_filter(client: AsyncClient):
 async def test_list_custom_filters(client: AsyncClient):
     """GET /api/custom-filters — 커스텀 필터 목록 조회"""
     with patch(
-        "app.api.endpoints.custom_filter.list_custom_filters",
+        "app.api.endpoints.custom_filters.list_custom_filters",
         return_value=[SAMPLE_FILTER],
     ):
         resp = await client.get("/api/custom-filters")
@@ -69,7 +69,7 @@ async def test_list_custom_filters(client: AsyncClient):
 async def test_list_custom_filters_empty(client: AsyncClient):
     """GET /api/custom-filters — 빈 목록"""
     with patch(
-        "app.api.endpoints.custom_filter.list_custom_filters",
+        "app.api.endpoints.custom_filters.list_custom_filters",
         return_value=[],
     ):
         resp = await client.get("/api/custom-filters")
@@ -83,7 +83,7 @@ async def test_list_custom_filters_empty(client: AsyncClient):
 async def test_get_custom_filter_detail(client: AsyncClient):
     """GET /api/custom-filters/{id} — 커스텀 필터 상세 조회"""
     with patch(
-        "app.api.endpoints.custom_filter.get_custom_filter",
+        "app.api.endpoints.custom_filters.get_custom_filter",
         return_value=SAMPLE_FILTER,
     ):
         resp = await client.get("/api/custom-filters/cf-test-uuid")
@@ -96,7 +96,7 @@ async def test_get_custom_filter_detail(client: AsyncClient):
 async def test_get_custom_filter_not_found(client: AsyncClient):
     """GET /api/custom-filters/{id} — 존재하지 않는 필터"""
     with patch(
-        "app.api.endpoints.custom_filter.get_custom_filter",
+        "app.api.endpoints.custom_filters.get_custom_filter",
         return_value=None,
     ):
         resp = await client.get("/api/custom-filters/nonexistent")
@@ -110,7 +110,7 @@ async def test_update_custom_filter(client: AsyncClient):
     """PUT /api/custom-filters/{id} — 커스텀 필터 수정"""
     updated = {**SAMPLE_FILTER, "nm": "gray-v2", "code": SAMPLE_CODE_WITH_PARAMS, "version": 2}
     with patch(
-        "app.api.endpoints.custom_filter.modify_custom_filter",
+        "app.api.endpoints.custom_filters.modify_custom_filter",
         return_value=updated,
     ):
         resp = await client.put(
@@ -126,7 +126,7 @@ async def test_update_custom_filter(client: AsyncClient):
 async def test_update_custom_filter_not_found(client: AsyncClient):
     """PUT /api/custom-filters/{id} — 존재하지 않는 필터 수정"""
     with patch(
-        "app.api.endpoints.custom_filter.modify_custom_filter",
+        "app.api.endpoints.custom_filters.modify_custom_filter",
         return_value=None,
     ):
         resp = await client.put(
@@ -142,7 +142,7 @@ async def test_update_custom_filter_not_found(client: AsyncClient):
 async def test_delete_custom_filter(client: AsyncClient):
     """DELETE /api/custom-filters/{id} — 커스텀 필터 삭제"""
     with patch(
-        "app.api.endpoints.custom_filter.remove_custom_filter",
+        "app.api.endpoints.custom_filters.remove_custom_filter",
         return_value=True,
     ):
         resp = await client.delete("/api/custom-filters/cf-test-uuid")
@@ -152,7 +152,7 @@ async def test_delete_custom_filter(client: AsyncClient):
 async def test_delete_custom_filter_not_found(client: AsyncClient):
     """DELETE /api/custom-filters/{id} — 존재하지 않는 필터 삭제"""
     with patch(
-        "app.api.endpoints.custom_filter.remove_custom_filter",
+        "app.api.endpoints.custom_filters.remove_custom_filter",
         return_value=False,
     ):
         resp = await client.delete("/api/custom-filters/nonexistent")
@@ -165,7 +165,7 @@ async def test_delete_custom_filter_not_found(client: AsyncClient):
 async def test_test_custom_filter(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/custom-filters/{id}/test — 커스텀 필터 테스트 실행"""
     with patch(
-        "app.api.endpoints.custom_filter.get_custom_filter",
+        "app.api.endpoints.custom_filters.get_custom_filter",
         return_value=SAMPLE_FILTER,
     ):
         resp = await client.post(
@@ -182,7 +182,7 @@ async def test_test_custom_filter_with_params(client: AsyncClient, test_image_by
     """POST /api/custom-filters/{id}/test — 파라미터 포함 테스트"""
     filter_with_params = {**SAMPLE_FILTER, "code": SAMPLE_CODE_WITH_PARAMS}
     with patch(
-        "app.api.endpoints.custom_filter.get_custom_filter",
+        "app.api.endpoints.custom_filters.get_custom_filter",
         return_value=filter_with_params,
     ):
         resp = await client.post(
@@ -197,7 +197,7 @@ async def test_test_custom_filter_with_params(client: AsyncClient, test_image_by
 async def test_test_custom_filter_not_found(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/custom-filters/{id}/test — 존재하지 않는 필터"""
     with patch(
-        "app.api.endpoints.custom_filter.get_custom_filter",
+        "app.api.endpoints.custom_filters.get_custom_filter",
         return_value=None,
     ):
         resp = await client.post(
@@ -214,7 +214,7 @@ async def test_test_custom_filter_not_found(client: AsyncClient, test_image_byte
 async def test_execute_custom_filter_success():
     """execute_custom_filter — 정상 실행"""
     import numpy as np
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "result = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)"
@@ -227,7 +227,7 @@ async def test_execute_custom_filter_success():
 async def test_execute_custom_filter_with_params():
     """execute_custom_filter — params 사용"""
     import numpy as np
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = (
@@ -245,7 +245,7 @@ async def test_execute_custom_filter_no_result():
     import numpy as np
     import pytest
     from app.core.errors import AppError, ErrorCode
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "x = 1 + 1"
@@ -260,7 +260,7 @@ async def test_execute_custom_filter_exec_error():
     import numpy as np
     import pytest
     from app.core.errors import AppError, ErrorCode
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "import os\nresult = image"
@@ -273,7 +273,7 @@ async def test_execute_custom_filter_exec_error():
 async def test_execute_custom_filter_preserves_original():
     """execute_custom_filter — 원본 이미지 보호 확인"""
     import numpy as np
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.full((10, 10, 3), 100, dtype=np.uint8)
     original = image.copy()
@@ -288,7 +288,7 @@ async def test_execute_custom_filter_invalid_ndim():
     import numpy as np
     import pytest
     from app.core.errors import AppError, ErrorCode
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "result = np.array([1, 2, 3], dtype=np.uint8)"
@@ -304,7 +304,7 @@ async def test_execute_custom_filter_invalid_channels():
     import numpy as np
     import pytest
     from app.core.errors import AppError, ErrorCode
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "result = np.zeros((100, 100, 2), dtype=np.uint8)"
@@ -320,7 +320,7 @@ async def test_execute_custom_filter_invalid_dtype():
     import numpy as np
     import pytest
     from app.core.errors import AppError, ErrorCode
-    from app.services.custom_filter_service import execute_custom_filter
+    from app.services.custom_filters_service import execute_custom_filter
 
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     code = "result = np.zeros((100, 100, 3), dtype=np.float64)"

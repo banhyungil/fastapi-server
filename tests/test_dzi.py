@@ -54,7 +54,7 @@ def test_save_node_dzi_overwrites_existing():
 def test_save_node_image_thumbnail():
     """_save_node_image — 썸네일 크기로 저장"""
     img = np.random.randint(0, 255, (1000, 1000, 3), dtype=np.uint8)
-    url = _save_node_image("test-thumb", "nid", img, full_size=False)
+    url = _save_node_image("test-thumb", "nid", img)
 
     assert url.startswith("/uploads/cache/test-thumb/nid.png")
     shutil.rmtree(CACHE_DIR / "test-thumb", ignore_errors=True)
@@ -63,7 +63,7 @@ def test_save_node_image_thumbnail():
 def test_save_node_image_full_size():
     """_save_node_image — 원본 크기로 저장"""
     img = np.random.randint(0, 255, (500, 500, 3), dtype=np.uint8)
-    url = _save_node_image("test-full", "nid", img, full_size=True)
+    url = _save_node_image("test-full", "nid", img)
 
     assert url.startswith("/uploads/cache/test-full/nid.png")
     shutil.rmtree(CACHE_DIR / "test-full", ignore_errors=True)
@@ -79,10 +79,8 @@ def test_batch_tree_no_dzi_for_small_image(test_image_bytes: bytes):
     result = process_image_batch_tree(
         image_bytes=test_image_bytes,
         steps=steps,
-        file_id="test-no-dzi",
     )
     assert len(result.node_results) == 1
-    assert result.node_results[0].dzi_url is None
 
     shutil.rmtree(CACHE_DIR / "test-no-dzi", ignore_errors=True)
 

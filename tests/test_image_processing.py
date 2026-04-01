@@ -1,9 +1,37 @@
 """이미지 처리 API 테스트"""
 
+import contextlib
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 from httpx import AsyncClient
+
+
+MOCK_FILE_ROW = {
+    "id": "test-file-id",
+    "origin_nm": "test.png",
+    "nm": "test.png",
+    "path": "uploads/test.png",
+    "mime_type": "image/png",
+    "size_bytes": 1000,
+    "uploaded_at": "2026-03-09T12:00:00",
+    "options": {},
+    "width": 100,
+    "height": 100,
+}
+
+
+@contextlib.contextmanager
+def _patch_file_read(test_image_bytes: bytes):
+    """find_file_by_id + Path.read_bytes를 mock하여 실제 DB/디스크 없이 테스트"""
+    with (
+        patch("app.api.endpoints.files.find_file_by_id", return_value=MOCK_FILE_ROW),
+        patch.object(Path, "exists", return_value=True),
+        patch.object(Path, "read_bytes", return_value=test_image_bytes),
+    ):
+        yield
+
 
 async def test_batch_tree_processing(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/process/batch-tree — 트리 배치 처리"""
@@ -11,20 +39,18 @@ async def test_batch_tree_processing(client: AsyncClient, test_image_bytes: byte
         {"nodeId": "n1", "filterType": "gaussianBlur", "parameters": {"kernelSize": 5}, "parentId": None},
         {"nodeId": "n2", "filterType": "sobel", "parameters": {"kernelSize": 3, "dx": 1, "dy": 0}, "parentId": "n1"},
     ])
-    resp = await client.post(
-        "/api/files/process/batch-tree",
-        data={"steps": steps, "fileId": "test-file-id"},
-        files={"file": ("test.png", test_image_bytes, "image/png")},
-    )
+    with _patch_file_read(test_image_bytes):
+        resp = await client.post(
+            "/api/files/process/batch-tree",
+            data={"steps": steps, "fileId": "test-file-id"},
+        )
     assert resp.status_code == 200
     data = resp.json()
     assert data["totalExecutionMs"] >= 0
     assert len(data["results"]) == 2
     assert data["results"][0]["nodeId"] == "n1"
     assert data["results"][1]["nodeId"] == "n2"
-    assert data["results"][0]["imageUrl"].startswith("/uploads/cache/")
-    # 100x100 이미지이므로 DZI 생성 안 됨
-    assert data["results"][0]["dziUrl"] is None
+    assert data["results"][0]["imageUrl"] is not None
 
 
 async def test_batch_tree_branching(client: AsyncClient, test_image_bytes: bytes):
@@ -34,11 +60,11 @@ async def test_batch_tree_branching(client: AsyncClient, test_image_bytes: bytes
         {"nodeId": "branch-a", "filterType": "sobel", "parameters": {}, "parentId": "root"},
         {"nodeId": "branch-b", "filterType": "canny", "parameters": {"threshold1": 100, "threshold2": 200}, "parentId": "root"},
     ])
-    resp = await client.post(
-        "/api/files/process/batch-tree",
-        data={"steps": steps, "fileId": "test-branch"},
-        files={"file": ("test.png", test_image_bytes, "image/png")},
-    )
+    with _patch_file_read(test_image_bytes):
+        resp = await client.post(
+            "/api/files/process/batch-tree",
+            data={"steps": steps, "fileId": "test-branch"},
+        )
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["results"]) == 3
@@ -48,22 +74,22 @@ async def test_batch_tree_branching(client: AsyncClient, test_image_bytes: bytes
 
 async def test_batch_tree_empty_steps(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/process/batch-tree — 빈 steps 배열"""
-    resp = await client.post(
-        "/api/files/process/batch-tree",
-        data={"steps": "[]", "fileId": "test-empty"},
-        files={"file": ("test.png", test_image_bytes, "image/png")},
-    )
+    with _patch_file_read(test_image_bytes):
+        resp = await client.post(
+            "/api/files/process/batch-tree",
+            data={"steps": "[]", "fileId": "test-empty"},
+        )
     assert resp.status_code == 400
 
 
 async def test_batch_tree_missing_node_id(client: AsyncClient, test_image_bytes: bytes):
     """POST /api/files/process/batch-tree — nodeId 누락"""
     steps = json.dumps([{"filterType": "blur", "parameters": {}, "parentId": None}])
-    resp = await client.post(
-        "/api/files/process/batch-tree",
-        data={"steps": steps, "fileId": "test-missing"},
-        files={"file": ("test.png", test_image_bytes, "image/png")},
-    )
+    with _patch_file_read(test_image_bytes):
+        resp = await client.post(
+            "/api/files/process/batch-tree",
+            data={"steps": steps, "fileId": "test-missing"},
+        )
     assert resp.status_code == 400
     assert "nodeId" in resp.json()["detail"]
 

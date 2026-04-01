@@ -5,12 +5,15 @@
 pytest
 # 첫 실패 시 중단
 pytest -x
+# 결과 요약 출력
+## --tb: traceback
+pytest --tb=short
 
 # 특정 파일
 py test tests/test_file.py
 
 # 특정 함수
-## -s: print/log 캡처 안 함수
+## -s: Shortcut for --capture=no, print/log 캡처 안 함수
 ## --log-cli-level=DEBUG: 로그 레벨 설정
 pytest tests/test_custom_filter.py::test_execute_find_by_id -s --log-cli-level=DEBUG
 ```

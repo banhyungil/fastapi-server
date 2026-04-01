@@ -11,7 +11,7 @@ THUMBNAIL_DIR = Path("uploads/thumbnails")
 
 async def test_create_humbnail(client: AsyncClient):
     # 파일 목록 조회
-    res = await client.get("/api/image-processing")
+    res = await client.get("/api/files")
     # pydentic 모델 추출
     data = FileListResponse.model_validate(res.json())
     # 썸네일 이미지 가 있는지 검사

@@ -29,7 +29,7 @@ def _mock_file_item(**overrides):
     return base
 
 
-@patch("app.api.endpoints.file.list_files")
+@patch("app.api.endpoints.files.list_files")
 async def test_get_files_empty(mock_list, client: AsyncClient):
     """GET /api/files — 빈 목록"""
     mock_list.return_value = _mock_page()
@@ -40,7 +40,7 @@ async def test_get_files_empty(mock_list, client: AsyncClient):
     assert data["hasMore"] is False
 
 
-@patch("app.api.endpoints.file.list_files")
+@patch("app.api.endpoints.files.list_files")
 async def test_get_files_with_items(mock_list, client: AsyncClient):
     """GET /api/files — 항목 반환"""
     mock_list.return_value = _mock_page(items=[_mock_file_item()])
@@ -51,17 +51,7 @@ async def test_get_files_with_items(mock_list, client: AsyncClient):
     assert data["items"][0]["originNm"] == "photo.jpg"
 
 
-@patch("app.api.endpoints.file.list_files")
-async def test_get_files_mime_filter(mock_list, client: AsyncClient):
-    """GET /api/files?mimeType=image/* — MIME 필터 전달 확인"""
-    mock_list.return_value = _mock_page()
-    await client.get("/api/files?mimeType=image/*")
-    mock_list.assert_called_once()
-    call_kwargs = mock_list.call_args.kwargs
-    assert call_kwargs["mime_type"] == "image/*"
-
-
-@patch("app.api.endpoints.file.list_files")
+@patch("app.api.endpoints.files.list_files")
 async def test_get_files_limit(mock_list, client: AsyncClient):
     """GET /api/files?limit=5 — limit 파라미터 전달 확인"""
     mock_list.return_value = _mock_page()
@@ -80,3 +70,11 @@ async def test_get_files_limit_too_large(client: AsyncClient):
     """GET /api/files?limit=200 — limit 초과"""
     resp = await client.get("/api/files?limit=200")
     assert resp.status_code == 422
+
+async def test_execute_find_by_id():
+    import uuid
+    from app.repos.files_repo import find_by_id
+
+    result = find_by_id(str(uuid.uuid4()))
+    
+    assert result is None

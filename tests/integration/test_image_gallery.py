@@ -15,7 +15,7 @@ from httpx import AsyncClient
 
 
 async def test_get_saved_images(client: AsyncClient): 
-    res = await client.get('/api/image-processing')
+    res = await client.get('/api/files')
     assert res.status_code == 200
 
     data = res.json()
