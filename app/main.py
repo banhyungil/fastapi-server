@@ -109,7 +109,8 @@ def custom_openapi():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # reload 옵션 부여시에는 파일 경로를 직접 명시
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
 
 
 app.openapi = custom_openapi

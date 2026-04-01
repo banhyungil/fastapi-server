@@ -36,4 +36,12 @@ echo $HOME
 ## -d(delimiter): 구분자 지정
 ## -f(field): 분리된 필드 중 몇번째 필드를 출력할지
 printenv | cut -d '=' -f 1
+
+```
+
+# npm
+
+```bash
+# 최신 버전 있는지 확인
+npm outdated @vue-flow/core
 ```

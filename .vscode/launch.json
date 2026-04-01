@@ -5,6 +5,7 @@
             "name": "FastAPI: Debug",
             "type": "debugpy",
             "request": "launch",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
             "module": "uvicorn",
             "args": [
                 "app.main:app",
@@ -21,6 +22,7 @@
             "name": "Pytest: Debug Current File",
             "type": "debugpy",
             "request": "launch",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
             "module": "pytest",
             "args": [
                 "${file}",
@@ -36,6 +38,7 @@
             "name": "FastAPI: Debug + Reload",
             "type": "debugpy",
             "request": "launch",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
             "module": "uvicorn",
             "args": [
                 "app.main:app",

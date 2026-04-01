@@ -52,14 +52,15 @@ def list_files(
 
 
 def delete_file(file_id: int) -> FileRow:
-    """파일 메타데이터 삭제 + 디스크 파일 삭제"""
+    """파일 메타데이터 삭제 + 디스크 파일 삭제 (로컬 참조 파일은 원본 유지)"""
     deleted = delete_by_id(file_id)
     if deleted is None:
         raise ValueError(f"file not found: {file_id}")
 
-    disk_path = Path(deleted["path"])
-    if disk_path.exists():
-        disk_path.unlink()
+    if deleted.get("source_type") != "local":
+        disk_path = Path(deleted["path"])
+        if disk_path.exists():
+            disk_path.unlink()
 
     delete_file_thumbnail(str(deleted["id"]))
 

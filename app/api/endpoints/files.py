@@ -203,6 +203,7 @@ async def img_upload(
             id=existing["id"], origin_nm=existing["origin_nm"], nm=existing["nm"],
             path=existing["path"], mime_type=existing["mime_type"],
             size_bytes=existing["size_bytes"], uploaded_at=existing["uploaded_at"],
+            source_type=existing.get("source_type", "upload"),
             width=existing["width"], height=existing["height"],
         )
 
@@ -243,7 +244,8 @@ async def img_upload(
     return FileUploadResponse(
         id=inserted["id"], origin_nm=origin_nm, nm=saved_name,
         path=saved_path, mime_type=file.content_type, size_bytes=len(data),
-        uploaded_at=inserted["uploaded_at"], width=width, height=height,
+        uploaded_at=inserted["uploaded_at"], source_type="upload",
+        width=width, height=height,
     )
 
 

@@ -17,6 +17,7 @@ class FileRowInput(TypedDict):
     mime_type: str
     size_bytes: int
     options: dict[str, Any]
+    source_type: NotRequired[str]
     content_hash: NotRequired[str | None]
     uploader_id: NotRequired[int | None]
     width: NotRequired[int | None]
@@ -37,6 +38,7 @@ class FileRow(TypedDict):
     size_bytes: int
     uploaded_at: datetime
     options: dict[str, Any]
+    source_type: str
     width: int | None
     height: int | None
 
@@ -58,7 +60,7 @@ def find_by_id(file_id: int) -> FileRow | None:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                SELECT id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                SELECT id, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, source_type, width, height
                 FROM t_file WHERE id = %s LIMIT 1
                 """,
                 (file_id,),
@@ -77,10 +79,29 @@ def find_by_content_hash(content_hash: str) -> FileRow | None:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                SELECT id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                SELECT id, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, source_type, width, height
                 FROM t_file WHERE content_hash = %s LIMIT 1
                 """,
                 (content_hash,),
+            )
+            row = cursor.fetchone()
+
+    return cast(FileRow, row) if row else None
+
+
+def find_local_by_path(path: str) -> FileRow | None:
+    """로컬 파일 경로로 기존 등록 여부를 조회한다."""
+    if not settings.database_url:
+        raise RuntimeError("database_url is not configured")
+
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                """
+                SELECT id, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, source_type, width, height
+                FROM t_file WHERE path = %s AND source_type = 'local' LIMIT 1
+                """,
+                (path,),
             )
             row = cursor.fetchone()
 
@@ -97,14 +118,15 @@ def insert_file_row(**kwargs: Unpack[FileRowInput]) -> InsertedFileMeta:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 """
-                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options, content_hash, width, height)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id,uploaded_at
+                INSERT INTO t_file (origin_nm, nm, path, mime_type, size_bytes, uploader_id, options, source_type, content_hash, width, height)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, uploaded_at
                 """,
                 (
                     kwargs["origin_nm"], kwargs["nm"], kwargs["path"],
                     kwargs["mime_type"], kwargs["size_bytes"],
                     kwargs.get("uploader_id"), Jsonb(kwargs["options"]),
+                    kwargs.get("source_type", "upload"),
                     kwargs.get("content_hash"),
                     kwargs.get("width"), kwargs.get("height"),
                 ),
@@ -129,7 +151,7 @@ def delete_by_id(file_id: int) -> FileRow | None:
             cursor.execute(
                 """
                 DELETE FROM t_file WHERE id = %s
-                RETURNING id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                RETURNING id, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, source_type, width, height
                 """,
                 (file_id,),
             )
@@ -149,7 +171,7 @@ def update_origin_nm(file_id: int, origin_nm: str) -> FileRow | None:
             cursor.execute(
                 """
                 UPDATE t_file SET origin_nm = %s WHERE id = %s
-                RETURNING id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+                RETURNING id, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, source_type, width, height
                 """,
                 (origin_nm, file_id),
             )
@@ -173,7 +195,7 @@ def get_file_list(
         raise RuntimeError("database_url is not configured")
 
     query = """
-        SELECT id,origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, width, height
+        SELECT id, origin_nm, nm, path, mime_type, size_bytes, uploaded_at, options, source_type, width, height
         FROM t_file
     """
     params: list[object] = []
