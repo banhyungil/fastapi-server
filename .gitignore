@@ -14,3 +14,4 @@ ztest_todo
 onpremise__install/install.bat
 .claude
 ztest.py
+.mcp.json

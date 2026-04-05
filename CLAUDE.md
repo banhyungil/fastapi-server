@@ -27,5 +27,23 @@
 ## 수정 규칙
 
 - `npx pyright`를 실행하여 0 errors를 확인할 것
-- 수정 후에는 docs/updates 하위에 업데이트 내용을 자연어로 간략하게 정리한다.
-- `제목_YYMMDD:HH` 으로 헤더를 설정하고 하위에 관련 수정내용을 정리한다.
+- 코드 수정 후에는 Notion에 정리한다.
+  - 문서 수정은 제외하고 기록
+
+### Notion 정리 지침
+
+- DB: 개발 > 프로젝트 > 프로젝트 작업
+- 데이터 소스 ID: `336705ff-d265-80a6-860d-000b6e9262ad`
+- 속성 매핑:
+  - `제목` (Title): 작업 제목
+  - `프로젝트 정보` (Relation): `["https://www.notion.so/338705ffd2658112b2c3cb65104b125a"]` (image-processing Backend)
+  - `작업 유형` (Multi-select): plan / feature / refactoring / bugfix / config / test / style / docs
+  - `상태` (Status): 요청전 / 요청 / 승인대기 / 승인 / 완료
+  - `시작일` (Date): 작업 시작일
+  - `Git Branch명` (Text): 작업 브랜치명 (있는 경우)
+  - `PR URL` (URL): PR 링크 (있는 경우)
+- 페이지 아이콘: 작업 유형에 따라 지정
+  - plan: 📋 / feature: ✨ / refactoring: ♻️ / bugfix: 🐛 / config: ⚙️ / test: 🧪 / style: 🎨 / docs: 📝
+  - Multi-select 시 첫 번째 유형 기준
+- 본문: 배경(왜), 변경 내용, 결과를 간결하게 작성
+- 작업 단위는 하루가 아니라 "의미 단위" — 하루에 2건이면 2페이지, 이틀 걸렸으면 1페이지

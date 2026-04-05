@@ -37,6 +37,9 @@ echo $HOME
 ## -f(field): 분리된 필드 중 몇번째 필드를 출력할지
 printenv | cut -d '=' -f 1
 
+# 파일 만들기
+touch test.txt
+
 ```
 
 # npm
@@ -44,4 +47,19 @@ printenv | cut -d '=' -f 1
 ```bash
 # 최신 버전 있는지 확인
 npm outdated @vue-flow/core
+```
+
+# claude
+
+```bash
+# mcp 서버 목록
+/mcp
+# model 변경
+/model
+```
+
+# 기타
+
+```bash
+npx tsc --noEmit
 ```
