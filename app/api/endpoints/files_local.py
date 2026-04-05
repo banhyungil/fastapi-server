@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 async def scan_local_directory(body: LocalScanRequest) -> LocalScanResponse:
     """로컬 디렉토리를 스캔하여 이미지 파일 목록을 반환한다."""
     try:
-        items = scan_directory(body.dir_path, recursive=body.recursive)
+        items = scan_directory(body.dir_path, recursive=body.recursive, use_thumbnail=body.use_thumbnail)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

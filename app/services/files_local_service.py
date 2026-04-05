@@ -45,6 +45,7 @@ def scan_directory(
     dir_path: str,
     *,
     recursive: bool = False,
+    use_thumbnail: bool = True,
 ) -> list[dict[str, object]]:
     """디렉토리를 스캔하여 지원되는 이미지 파일 목록을 반환한다."""
     root = Path(dir_path)
@@ -74,10 +75,11 @@ def scan_directory(
         h, w = img.shape[:2]
 
         thumbnail_url = ""
-        try:
-            thumbnail_url = encode_base64_thumbnail(img, SCAN_THUMBNAIL_SIZE)
-        except Exception:
-            pass
+        if use_thumbnail:
+            try:
+                thumbnail_url = encode_base64_thumbnail(img, SCAN_THUMBNAIL_SIZE)
+            except Exception:
+                pass
 
         existing = find_local_by_path(abs_path)
 
