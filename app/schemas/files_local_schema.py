@@ -6,6 +6,7 @@ from app.schemas.files_schema import CamelModel, FileUploadResponse
 class LocalScanRequest(CamelModel):
     dir_path: str = Field(..., description="스캔할 디렉토리 절대 경로")
     recursive: bool = Field(False, description="하위 디렉토리 포함 여부")
+    use_thumbnail: bool = Field(True, description="썸네일 생성 여부")
 
 
 class LocalFileInfo(CamelModel):
