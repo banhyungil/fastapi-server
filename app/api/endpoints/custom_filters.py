@@ -30,6 +30,31 @@ async def list_custom_filter() -> CustomFilterListResponse:
     )
 
 
+@router.post(
+    "/custom-filters/preview",
+    tags=["custom-filter"],
+)
+async def preview_custom_filter(
+    image: UploadFile = File(...),
+    code: str = Form(...),
+    parameters: str = Form("{}"),
+) -> StreamingResponse:
+    """커스텀 필터 미리보기 (코드 직접 전달, 저장 불필요)"""
+    params = json.loads(parameters)
+    image_bytes = await image.read()
+
+    result_bytes = svc.test_custom_filter(
+        code=code,
+        image_bytes=image_bytes,
+        params=params,
+    )
+
+    return StreamingResponse(
+        io.BytesIO(result_bytes),
+        media_type="image/png",
+    )
+
+
 @router.get(
     "/custom-filters/{filter_id}",
     tags=["custom-filter"],
