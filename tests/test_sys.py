@@ -1,7 +1,7 @@
 from httpx import AsyncClient
 from pathlib import Path
 from app.schemas.files_schema import FileListResponse
-from app.services.thumbnails import save_file_thumbnail
+from app.services.modules.thumbnails import save_file_thumbnail
 from typing import cast
 import pytest
 # opencv 파이썬 바인딩

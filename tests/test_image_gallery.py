@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from httpx import AsyncClient
 
-from app.services.thumbnails import (
+from app.services.modules.thumbnails import (
     save_file_thumbnail,
     get_file_thumbnail_url,
     delete_file_thumbnail,

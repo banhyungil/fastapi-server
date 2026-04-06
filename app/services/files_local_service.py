@@ -14,7 +14,7 @@ from app.repos.files_repo import (
     find_local_by_path,
     insert_file_row,
 )
-from app.services.thumbnails import save_file_thumbnail, encode_base64_thumbnail
+from app.services.modules.thumbnails import save_file_thumbnail, encode_base64_thumbnail
 
 logger = logging.getLogger(__name__)
 

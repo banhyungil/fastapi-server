@@ -63,3 +63,16 @@ npm outdated @vue-flow/core
 ```bash
 npx tsc --noEmit
 ```
+
+# git
+
+```bash
+# remote 브랜치 목록
+git brahnch -r
+# 원격 브랜치삭제
+git push origin --delete <branch>
+
+# 마지막 커밋 취소후 staged 상태로 되돌림
+git reset --soft HEAD~1
+
+```

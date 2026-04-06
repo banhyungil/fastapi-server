@@ -9,8 +9,8 @@ import numpy as np
 
 from app.schemas.files_schema import FilterType
 from app.schemas.image_processing_schema import PARAM_MODELS
-from app.services.cache import CACHE_DIR
-from app.services.operations import OPERATIONS
+from app.services.modules.cache import CACHE_DIR
+from app.services.modules.operations import OPERATIONS
 
 TILE_THRESHOLD = 4000  # px — 한 변이 이 이상이면 DZI 타일 생성
 
@@ -150,7 +150,7 @@ def generate_dzi_for_node(
     crop_id가 있으면 crop 캐시 이미지를 소스로 사용한다."""
     # cropId가 있으면 crop 캐시에서 이미지 로드
     if crop_id:
-        from app.services.cache import CACHE_DIR
+        from app.services.modules.cache import CACHE_DIR
         crop_path = str(CACHE_DIR / file_id / "preview" / f"{crop_id}.png")
         source_path = crop_path
     else:

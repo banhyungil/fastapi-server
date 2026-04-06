@@ -4,8 +4,8 @@ import shutil
 
 import numpy as np
 
-from app.services.cache import CACHE_DIR
-from app.services.dzi import TILE_THRESHOLD, _save_node_dzi, _save_node_image
+from app.services.modules.cache import CACHE_DIR
+from app.services.modules.dzi import TILE_THRESHOLD, _save_node_dzi, _save_node_image
 from app.services.files_service import process_image_batch_tree
 
 

@@ -10,9 +10,9 @@ import numpy as np
 
 from app.schemas.files_schema import FilterType
 from app.schemas.image_processing_schema import PARAM_MODELS
-from app.services.cache import CACHE_DIR
-from app.services.operations import OPERATIONS
-from app.services.dzi import _process_chain_to_node
+from app.services.modules.cache import CACHE_DIR
+from app.services.modules.operations import OPERATIONS
+from app.services.modules.dzi import _process_chain_to_node
 
 PREVIEW_MIN_CROP_PIXELS = 2_500        # 총 픽셀 수 최소 (50x50)
 PREVIEW_MAX_CROP_PIXELS = 16_000_000   # 총 픽셀 수 최대 (4000x4000)

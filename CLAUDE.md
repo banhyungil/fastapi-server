@@ -14,10 +14,12 @@
 
 ## Plan 관리 규칙
 
-- `docs/plans/` 하위에 방안 관리
-- 파일명 형식: `파일명_YYMMDD.md`
-- 파일명은 대문자로
-- 사용자가 프로젝트 내에서 검토 후 승인할 때까지 구현 시작하지 말 것
+- Notion "프로젝트 작업" DB에 작성
+  - 작업 유형: `plan`
+  - 상태: `완료`
+  - 나머지 속성은 Notion 정리 지침 따름
+- 본문: 배경, 방안(UI 구조/구현 포인트 등), 핵심 구성 요소를 정리
+- 사용자가 Notion에서 검토 후 승인할 때까지 구현 시작하지 말 것
 
 ## 학습 노트 규칙
 
@@ -38,10 +40,14 @@
   - `제목` (Title): 작업 제목
   - `프로젝트 정보` (Relation): `["https://www.notion.so/338705ffd2658112b2c3cb65104b125a"]` (image-processing Backend)
   - `작업 유형` (Multi-select): plan / feature / refactoring / bugfix / config / test / style / docs
-  - `상태` (Status): 요청전 / 요청 / 승인대기 / 승인 / 완료
+  - `상태` (Status): 요청전 / 요청 / 작업중 / 승인대기 / PR 리뷰 / 승인 / 완료
+  - `우선순위` (Select): 높음 / 보통 / 낮음
   - `시작일` (Date): 작업 시작일
+  - `종료일` (Date): 작업 종료일
   - `Git Branch명` (Text): 작업 브랜치명 (있는 경우)
+  - `Git Process Type` (Select): auto-merge / create-pr / push-only
   - `PR URL` (URL): PR 링크 (있는 경우)
+  - `상위 작업` (Relation): 상위 작업 페이지 (있는 경우, self-relation)
 - 페이지 아이콘: 작업 유형에 따라 지정
   - plan: 📋 / feature: ✨ / refactoring: ♻️ / bugfix: 🐛 / config: ⚙️ / test: 🧪 / style: 🎨 / docs: 📝
   - Multi-select 시 첫 번째 유형 기준

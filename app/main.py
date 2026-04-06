@@ -13,7 +13,7 @@ from app.core.database import run_migrations, pool
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
 from app.schemas.image_processing_schema import PARAM_MODELS
-from app.services.cache import cleanup_cache
+from app.services.modules.cache import cleanup_cache
 from pathlib import Path
 
 setup_logging()

@@ -23,17 +23,8 @@ from app.schemas.files_schema import (
     TreeBatchResponse, TreeNodeResultResponse,
     DziResponse, Viewport, PreviewCropResponse,
 )
-from app.services.files_service import (
-    insert_file, list_files, find_file_by_hash, find_file_by_id,
-    delete_file, rename_file,
-    process_image, process_image_batch_tree,
-)
-from app.services.thumbnails import save_file_thumbnail, get_file_thumbnail_url
-from app.services.dzi import generate_dzi_for_node, download_node_image
-from app.services.crop import (
-    create_preview_crop, apply_preview_filter,
-    apply_preview_filter_all, delete_preview_crop,
-)
+from app.services import files_service as svc
+from app.services.modules import thumbnails, dzi, crop
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -62,7 +53,7 @@ async def get_saved_images(
     if (cursor_uploaded_at is None) != (cursor_id is None):
         raise HTTPException(status_code=400, detail="cursorUploadedAt and cursorId must be provided together")
 
-    page = list_files(
+    page = svc.list_files(
         limit=limit, search=search, min_size=min_size, max_size=max_size,
         cursor_uploaded_at=cursor_uploaded_at, cursor_id=cursor_id,
     )
@@ -70,7 +61,7 @@ async def get_saved_images(
     items: list[TFile] = []
     for item in page["items"]:
         t_file = TFile.model_validate(item)
-        t_file.thumbnail_url = get_file_thumbnail_url(str(item["id"]))
+        t_file.thumbnail_url = thumbnails.get_file_thumbnail_url(str(item["id"]))
         items.append(t_file)
 
     return FileListResponse(
@@ -85,7 +76,7 @@ async def get_saved_images(
 async def delete_image(file_id: int) -> dict[str, str]:
     """이미지 파일 삭제 (DB 메타데이터 + 디스크 파일)"""
     try:
-        delete_file(file_id)
+        svc.delete_file(file_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"detail": "deleted"}
@@ -95,7 +86,7 @@ async def delete_image(file_id: int) -> dict[str, str]:
 async def rename_image(file_id: int, body: FileRenameRequest) -> TFile:
     """이미지 파일명(originNm) 수정"""
     try:
-        updated = rename_file(file_id, body.origin_nm)
+        updated = svc.rename_file(file_id, body.origin_nm)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return TFile.model_validate(updated)
@@ -107,7 +98,7 @@ async def get_thumbnail(
     size: Annotated[int, Query(ge=32, le=400, description="썸네일 최대 변 크기 (px)")] = 200,
 ) -> StreamingResponse:
     """파일 ID에 해당하는 이미지를 지정 크기로 축소하여 반환한다."""
-    file_row = find_file_by_id(file_id)
+    file_row = svc.find_file_by_id(file_id)
     if file_row is None:
         raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
 
@@ -161,7 +152,7 @@ async def img_processing_save(
     width, height = _get_image_dimensions(data)
 
     try:
-        inserted = insert_file(
+        inserted = svc.insert_file(
             origin_nm=origin_nm, nm=saved_name, path=saved_path,
             mime_type=blob.content_type, size_bytes=len(data),
             options={"filterType": filter_type, "prcMs": prc_ms},
@@ -174,7 +165,7 @@ async def img_processing_save(
         raise HTTPException(status_code=500, detail="failed to persist file metadata") from exc
 
     try:
-        save_file_thumbnail(str(inserted["id"]), data)
+        thumbnails.save_file_thumbnail(str(inserted["id"]), data)
     except Exception:
         logger.warning("failed to generate thumbnail for %s", inserted["id"])
 
@@ -197,7 +188,7 @@ async def img_upload(
         raise HTTPException(400, "unsupported content type")
 
     content_hash = sha256(data).hexdigest()
-    existing = find_file_by_hash(content_hash)
+    existing = svc.find_file_by_hash(content_hash)
     if existing is not None:
         return FileUploadResponse(
             id=existing["id"], origin_nm=existing["origin_nm"], nm=existing["nm"],
@@ -224,7 +215,7 @@ async def img_upload(
     width, height = _get_image_dimensions(data)
 
     try:
-        inserted = insert_file(
+        inserted = svc.insert_file(
             origin_nm=origin_nm, nm=saved_name, path=saved_path,
             mime_type=file.content_type, size_bytes=len(data),
             content_hash=content_hash, options={},
@@ -237,7 +228,7 @@ async def img_upload(
         raise HTTPException(status_code=500, detail="failed to persist file metadata") from exc
 
     try:
-        save_file_thumbnail(str(inserted["id"]), data)
+        thumbnails.save_file_thumbnail(str(inserted["id"]), data)
     except Exception:
         logger.warning("failed to generate thumbnail for %s", inserted["id"])
 
@@ -270,7 +261,7 @@ async def file_process(
 
     try:
         start = time.perf_counter()
-        processed_image_bytes = process_image(
+        processed_image_bytes = svc.process_image(
             filter_type=filter_type, image_bytes=uploaded_file_bytes, parameters=params_dict,
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -297,7 +288,7 @@ async def file_process_batch_tree(
     return_node_ids: Annotated[str | None, Form(alias="returnNodeIds", description="이미지 반환할 노드 ID 목록 (JSON 배열, 미지정 시 전체)")] = None,
 ) -> TreeBatchResponse:
     """트리 구조 배치 이미지 처리."""
-    file_row = find_file_by_id(file_id)
+    file_row = svc.find_file_by_id(file_id)
     if file_row is None:
         raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
 
@@ -317,7 +308,7 @@ async def file_process_batch_tree(
 
     # cropId가 있으면 crop 캐시에서, 없으면 원본 파일에서 이미지 로드
     if crop_id:
-        from app.services.cache import CACHE_DIR
+        from app.services.modules.cache import CACHE_DIR
         crop_path = CACHE_DIR / str(file_id) / "preview" / f"{crop_id}.png"
         if not crop_path.exists():
             raise HTTPException(status_code=404, detail=f"crop not found: {crop_id}")
@@ -337,7 +328,7 @@ async def file_process_batch_tree(
             except json.JSONDecodeError:
                 pass
 
-        result = process_image_batch_tree(
+        result = svc.process_image_batch_tree(
             image_bytes=image_bytes, steps=steps_list, thumbnail_size=thumbnail_size,
             return_node_ids=parsed_return_ids,
         )
@@ -371,7 +362,7 @@ async def create_dzi(
     crop_id: Annotated[str | None, Form(alias="cropId", description="crop 캐시 ID (지정 시 crop 이미지 기준으로 처리)")] = None,
 ) -> DziResponse:
     """원본 이미지에 steps 체인을 적용하고, 타겟 노드의 DZI 타일(또는 원본 이미지)을 생성한다."""
-    file_row = find_file_by_id(file_id)
+    file_row = svc.find_file_by_id(file_id)
     if file_row is None:
         raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
 
@@ -381,7 +372,7 @@ async def create_dzi(
         raise HTTPException(status_code=400, detail=f"invalid steps JSON: {exc}") from exc
 
     try:
-        result = generate_dzi_for_node(
+        result = dzi.generate_dzi_for_node(
             file_path=file_row["path"], steps=steps_list,
             file_id=str(file_id), node_id=node_id, crop_id=crop_id,
         )
@@ -400,7 +391,7 @@ async def download_node(
     node_id: Annotated[str, Form(alias="nodeId", description="다운로드할 타겟 노드 ID")],
 ) -> StreamingResponse:
     """원본 이미지에 steps 체인을 적용하고, 타겟 노드의 처리 결과를 PNG로 다운로드한다."""
-    file_row = find_file_by_id(file_id)
+    file_row = svc.find_file_by_id(file_id)
     if file_row is None:
         raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
 
@@ -410,7 +401,7 @@ async def download_node(
         raise HTTPException(status_code=400, detail=f"invalid steps JSON: {exc}") from exc
 
     try:
-        image_bytes = download_node_image(
+        image_bytes = dzi.download_node_image(
             file_path=file_row["path"], steps=steps_list, node_id=node_id,
         )
     except ValueError as exc:
@@ -437,7 +428,7 @@ async def preview_crop(
     padding: Annotated[int, Form(ge=0, le=200, description="경계 아티팩트 방지 여유 영역 (px)")] = 50,
 ) -> PreviewCropResponse:
     """뷰포트 영역의 crop 이미지를 생성하고 캐시한다."""
-    file_row = find_file_by_id(file_id)
+    file_row = svc.find_file_by_id(file_id)
     if file_row is None:
         raise HTTPException(status_code=404, detail=f"file not found: {file_id}")
 
@@ -452,7 +443,7 @@ async def preview_crop(
         raise HTTPException(status_code=400, detail=f"invalid viewport JSON: {exc}") from exc
 
     try:
-        result = create_preview_crop(
+        result = crop.create_preview_crop(
             file_path=file_row["path"], node_steps=steps_list,
             node_id=node_id, viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
             file_id=str(file_id), padding=padding,
@@ -487,7 +478,7 @@ async def preview_apply(
 
     try:
         start = time.perf_counter()
-        result_bytes = apply_preview_filter(
+        result_bytes = crop.apply_preview_filter(
             file_id=str(file_id), crop_id=crop_id, temp_steps=steps_list,
             viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
             padding=padding,
@@ -524,7 +515,7 @@ async def preview_apply_all(
         raise HTTPException(status_code=400, detail=f"invalid viewport JSON: {exc}") from exc
 
     try:
-        results = apply_preview_filter_all(
+        results = crop.apply_preview_filter_all(
             file_id=str(file_id), crop_id=crop_id, temp_steps=steps_list,
             viewport={"x": vp.x, "y": vp.y, "w": vp.w, "h": vp.h},
             padding=padding,
@@ -547,5 +538,5 @@ async def preview_apply_all(
 @router.delete("/files/crop/{file_id}/{crop_id}", tags=["files"])
 async def preview_delete(file_id: int, crop_id: str) -> dict[str, str]:
     """캐시된 preview crop 파일을 삭제한다."""
-    delete_preview_crop(str(file_id), crop_id)
+    crop.delete_preview_crop(str(file_id), crop_id)
     return {"detail": "deleted"}

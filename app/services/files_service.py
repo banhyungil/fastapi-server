@@ -15,8 +15,8 @@ from app.repos.files_repo import (
     insert_file_row, get_file_list, find_by_content_hash,
     find_by_id, delete_by_id, update_origin_nm,
 )
-from app.services.operations import OPERATIONS
-from app.services.thumbnails import delete_file_thumbnail, encode_base64_thumbnail
+from app.services.modules.operations import OPERATIONS
+from app.services.modules.thumbnails import delete_file_thumbnail, encode_base64_thumbnail
 
 
 # ── 파일 CRUD ─────────────────────────────────────────────────────────────────
